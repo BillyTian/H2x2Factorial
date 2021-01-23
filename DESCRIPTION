@@ -1,17 +1,18 @@
 Package: H2x2Factorial
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
-Authors@R: 
-    person(given = "First",
-           family = "Last",
-           role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+Title: Sample size calculation in hierarchical 2x2 factorial trial with unequal cluster sizes
+Version: 1.0.2
+Authors@R: person("Zizhong", "Tian", 
+           role = c("aut", "cre"), 
+           email = "zizhong.tian@yale.edu")
+Description: Encapsulates sample size methods for hierarchical 2x2 factorial trial as well as table and plot generators for the sample size estimations.
+Depends: R (>= 2.10)
 License: LGPL (>= 2.1)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 6.1.1
 Suggests: 
-    testthat
+    knitr,
+    rmarkdown
+    
+
