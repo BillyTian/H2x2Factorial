@@ -8,8 +8,9 @@ table.H2x2Factorial(power=0.8, alpha=0.05,
                     pi_x=0.5, pi_z=0.5,
                     delta_x, delta_z, delta_xz, sigma2_y=1,
                     m_bar, CV, rho,
-                    test="cluster", correction=F,
-                    max_n=1e8, seed_mix=NULL, size_mix=1e4)
+                    test="cluster", correction=FALSE,
+                    max_n=1e8, seed_mix=NULL, size_mix=1e4,
+                    verbose=TRUE)
 }
 \arguments{
 \item{power}{a numeric value between 0 and 1 as the desired power level for sample size estimation. Default is \code{0.8}.}
@@ -46,10 +47,12 @@ table.H2x2Factorial(power=0.8, alpha=0.05,
 \item{seed_mix}{an optional setting of a seed for conducting the simulation-based testing under a mixed distribution, which is only functional under \code{test="joint"}. Default is \code{NULL}.}
 
 \item{size_mix}{a pre-specified size for the mixed distribution in the simulation-based procedure, which is only needed under \code{test="joint"}. Default is \code{1e4}.}
+
+\item{verbose}{a logical argument indicating whether the parameter reiterations and supplementary messages should be presented or suppressed. Default is \code{TRUE}.}
 }
 \value{
 \code{table.H2x2Factorial} returns a data frame with inputs of \code{m_bar}, \code{rho}, and \code{CV} varied in a factorial setting, the predicted number of clusters \code{n} under the power requirement,
-and the actual power \code{predicted.power} the estimated sample size can help to achieve.
+and the actual power \code{predicted.power} the estimated sample size can help to achieve, with some suppressible messages.
 }
 \description{
 The function \code{table.H2x2Factorial} outputs a data frame that summarizes the required number of clusters and the predicted
@@ -64,7 +67,7 @@ an external loop could be easily written using this function to produce many dat
 #Make a result table by providing three mean cluster sizes, three CV, and three ICC
 table.cluster <- table.H2x2Factorial(delta_x=0.2, delta_z=0.1,
                                      m_bar=c(10,50,100), CV=c(0, 0.3, 0.5), rho=c(0.01, 0.1),
-                                     test="cluster")
+                                     test="cluster", verbose=FALSE)
 table.cluster
 
 }

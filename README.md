@@ -6,7 +6,7 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-This `H2x2Factorial` package encapsulates the sample size methods for
+This `H2x2Factorial` package implements the sample size methods for
 hierarchical 2x2 factorial trials with unequal cluster sizes. The sample
 size calculations support five types of hypothesis tests: (A1) test for
 marginal cluster-level treatment effect, (A2) test for marginal
@@ -27,8 +27,9 @@ cluster sizes, intraclass correlation coefficients, or coefficient of
 variations of cluster sizes (CV). The `graph.H2x2Factorial` function
 plots sample size requirements under different CV in the form of the
 combinations of mean cluster sizes and number of clusters. All of the
-hypothesis tests and sample size methodologies are formalized in Tian et
-al.
+hypothesis tests and sample size methodologies are formalized in “Sample
+Size Calculation in Hierarchical 2x2 Factorial Trials with Unequal
+Cluster Sizes” (under review).
 
 ## Installation
 

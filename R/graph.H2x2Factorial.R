@@ -13,8 +13,9 @@
 #'                     power=0.8, alpha=0.05,
 #'                     pi_x=0.5, pi_z=0.5,
 #'                     delta_x=0.25, delta_z=0.33, delta_xz=0.3, sigma2_y=1, rho=0,
-#'                     test="cluster", correction=F,
-#'                     max_n=1e8, seed_mix=NULL, size_mix=1e4)
+#'                     test="cluster", correction=FALSE,
+#'                     max_n=1e8, seed_mix=NULL, size_mix=1e4,
+#'                     verbose=TRUE)
 #'
 #' @param m_lower a numeric value larger than 2 for the lower bound of the mean cluster sizes on the horizontal axis. Default is \code{10}.
 #' @param m_upper a numeric value larger than \code{m_lower} for the upper bound of the mean cluster sizes on the horizontal axis. Default is \code{100}.
@@ -44,15 +45,15 @@
 #' @param max_n an optional setting of a maximum number of clusters, which is only functional under \code{test="cluster"}, \code{"joint"}, or \code{"I-U"}. Default is \code{1e8}.
 #' @param seed_mix an optional setting of a seed for conducting the simulation-based testing under a mixed distribution, which is only functional under \code{test="joint"}. Default is \code{NULL}.
 #' @param size_mix a pre-specified size for the mixed distribution in the simulation-based procedure, which is only needed under \code{test="joint"}. Default is \code{1e4}.
+#' @param verbose a logical argument indicating whether the parameter reiterations and supplementary messages should be presented or suppressed. Default is \code{TRUE}.
 #'
-#'
-#' @return \code{graph.H2x2Factorial} returns a plot comparing the sample size requirements under different CV.
+#' @return \code{graph.H2x2Factorial} returns a plot comparing the sample size requirements under different CV, with some suppressible messages.
 #'
 #' @export
 #'
 #' @examples
 #' #Make a plot under the test for marginal cluster-level treatment effect
-#' graph.H2x2Factorial(power=0.9, test="cluster", rho=0.1)
+#' graph.H2x2Factorial(power=0.9, test="cluster", rho=0.1, verbose=FALSE)
 #'
 #' @importFrom stats qnorm pnorm qt pt qchisq pchisq rchisq qf pf rf quantile
 #' @importFrom graphics plot lines mtext legend
@@ -71,10 +72,11 @@ graph.H2x2Factorial <- function(m_lower=10,
                                 sigma2_y=1,
                                 rho=0,
                                 test="cluster",
-                                correction=F,
+                                correction=FALSE,
                                 max_n=1e8,
                                 seed_mix=NULL,
-                                size_mix=1e4){
+                                size_mix=1e4,
+                                verbose=TRUE){
 
   if (!is.numeric(m_lower) || m_lower <=2 || length(m_lower)!=1)
     stop('The lower limit of mean cluster sizes must be a number greater than 2')
@@ -164,7 +166,7 @@ graph.H2x2Factorial <- function(m_lower=10,
       stop('Effect size of the marginal individual-level treatment effect must be a nonzero number')
     if (!is.numeric(pi_z) || pi_z <= 0 || pi_z >= 1 || length(pi_z)!=1)
       stop('Proportion of individuals that are randomized to the individual-level treatment arm must be a single number in (0,1)')
-    if (correction==T)
+    if (correction==TRUE)
       message('No finite-sample correction will be done for the test for marginal individual-level treatment effect due to adequate degrees of freedom')
 
   } else if (test=="interaction"){
@@ -174,7 +176,7 @@ graph.H2x2Factorial <- function(m_lower=10,
       stop('Proportion of clusters that are randomized to the cluster-level treatment arm must be a single number in (0,1)')
     if (!is.numeric(pi_z) || pi_z <= 0 || pi_z >= 1 || length(pi_z)!=1)
       stop('Proportion of individuals that are randomized to the individual-level treatment arm must be a single number in (0,1)')
-    if (correction==T)
+    if (correction==TRUE)
       message('No finite-sample correction will be done for the interaction test due to adequate degrees of freedom')
 
   } else if (test=="joint"){
@@ -213,6 +215,8 @@ graph.H2x2Factorial <- function(m_lower=10,
   if (!is.numeric(size_mix) || size_mix <= 0 || length(size_mix)!=1)
     stop('Sample size for simulating the mix distribution under the finite-sample corrected joint test must be a positive number')
 
+  if (!is.logical(verbose))
+    stop('Message presentation indicator should be a logical argument')
 
   #Effect sizes might be negative
   delta_x <- abs(delta_x)
@@ -267,10 +271,57 @@ graph.H2x2Factorial <- function(m_lower=10,
   y_lower <- range(calc.range)[1]
   y_upper <- range(calc.range)[2]
 
+
+  #Re-iterate the given effect sizes, the chosen test, and the theoretical test name
+  if (verbose==TRUE){
+    if (test=="cluster"){
+
+      cat('Type of hypothesis test:\nTest for marginal cluster-level treatment effect')
+      cat(paste0('\nEffect size:\n', delta_x, " for the marginal cluster-level treatment effect"))
+      if (correction==FALSE){
+        cat("\nA Wald z-test is used without finite-sample correction\n")
+      } else if (correction==TRUE){
+        cat("\nA t-test is used for finite-sample correction\n")
+      }
+
+    } else if (test=="individual"){
+
+      cat('Type of hypothesis test:\nTest for marginal individual-level treatment effect')
+      cat(paste0('\nEffect size:\n', delta_z, " for the marginal individual-level treatment effect"))
+
+    } else if (test=="interaction"){
+
+      cat('Type of hypothesis test:\nInteraction test')
+      cat(paste0('\nEffect size:\n', delta_xz, " for the interaction effect"))
+
+    } else if (test=="joint"){
+
+      cat('Type of hypothesis test:\nJoint test')
+      cat(paste0('\nEffect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
+      if (correction==FALSE){
+        cat("\nA Chi-square test is used without finite-sample correction\n")
+      } else if (correction==TRUE){
+        cat("\nA simulation-based mixed F-Chi-square test is used for finite-sample correction\n")
+      }
+
+    } else if (test=="I-U"){
+
+      cat('Type of hypothesis test:\nIntersection-union test')
+      cat(paste0('\nEffect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
+      if (correction==FALSE){
+        cat("\nA z-based intersection-union test is used without finite-sample correction\n")
+      } else if (correction==TRUE){
+        cat("\nA mixed t- and z-based intersection-union test is used for finite-sample correction\n")
+      }
+
+    }
+  }
+
+
   if (is.null(title)){
     if (test=="cluster"){
-      if (correction==T){title <- "Test for marginal cluster-level treatment effect \n with finite-sample correction"}
-      else if (correction==F){title <- "Test for marginal cluster-level treatment effect \n without finite-sample correction"}
+      if (correction==TRUE){title <- "Test for marginal cluster-level treatment effect \n with finite-sample correction"}
+      else if (correction==FALSE){title <- "Test for marginal cluster-level treatment effect \n without finite-sample correction"}
 
     } else if (test=="individual"){
       title <- "Test for marginal individual-level treatment effect"
@@ -279,12 +330,12 @@ graph.H2x2Factorial <- function(m_lower=10,
       title <- "Interaction test"
 
     } else if (test=="joint"){
-      if (correction==T){title <- "Joint test with finite-sample correction"}
-      else if (correction==F){title <- "Joint test without finite-sample correction"}
+      if (correction==TRUE){title <- "Joint test with finite-sample correction"}
+      else if (correction==FALSE){title <- "Joint test without finite-sample correction"}
 
     } else if (test=="I-U"){
-      if (correction==T){title <- "Intersection-union test \n with finite-sample correction"}
-      else if (correction==F){title <- "Intersection-union test \n without finite-sample correction"}
+      if (correction==TRUE){title <- "Intersection-union test \n with finite-sample correction"}
+      else if (correction==FALSE){title <- "Intersection-union test \n without finite-sample correction"}
 
     }
   }

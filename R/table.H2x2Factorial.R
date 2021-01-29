@@ -9,8 +9,9 @@
 #'                     pi_x=0.5, pi_z=0.5,
 #'                     delta_x, delta_z, delta_xz, sigma2_y=1,
 #'                     m_bar, CV, rho,
-#'                     test="cluster", correction=F,
-#'                     max_n=1e8, seed_mix=NULL, size_mix=1e4)
+#'                     test="cluster", correction=FALSE,
+#'                     max_n=1e8, seed_mix=NULL, size_mix=1e4,
+#'                     verbose=TRUE)
 #'
 #' @param power a numeric value between 0 and 1 as the desired power level for sample size estimation. Default is \code{0.8}.
 #' @param alpha a numeric value between 0 and 1 as the type I error rate. Default is \code{0.05}.
@@ -31,13 +32,14 @@
 #' @param max_n an optional setting of a maximum number of clusters, which is only functional under \code{test="cluster"}, \code{"joint"}, or \code{"I-U"}. Default is \code{1e8}.
 #' @param seed_mix an optional setting of a seed for conducting the simulation-based testing under a mixed distribution, which is only functional under \code{test="joint"}. Default is \code{NULL}.
 #' @param size_mix a pre-specified size for the mixed distribution in the simulation-based procedure, which is only needed under \code{test="joint"}. Default is \code{1e4}.
+#' @param verbose a logical argument indicating whether the parameter reiterations and supplementary messages should be presented or suppressed. Default is \code{TRUE}.
 #'
 #' @details
 #' If the user further requires a vector of \code{power} or other parameters like \code{pi_x}, which invokes the need for multiple tables,
 #' an external loop could be easily written using this function to produce many data frames.
 #'
 #' @return \code{table.H2x2Factorial} returns a data frame with inputs of \code{m_bar}, \code{rho}, and \code{CV} varied in a factorial setting, the predicted number of clusters \code{n} under the power requirement,
-#' and the actual power \code{predicted.power} the estimated sample size can help to achieve.
+#' and the actual power \code{predicted.power} the estimated sample size can help to achieve, with some suppressible messages.
 #'
 #'
 #' @export
@@ -46,7 +48,7 @@
 #' #Make a result table by providing three mean cluster sizes, three CV, and three ICC
 #' table.cluster <- table.H2x2Factorial(delta_x=0.2, delta_z=0.1,
 #'                                      m_bar=c(10,50,100), CV=c(0, 0.3, 0.5), rho=c(0.01, 0.1),
-#'                                      test="cluster")
+#'                                      test="cluster", verbose=FALSE)
 #' table.cluster
 #'
 #' @importFrom stats qnorm pnorm qt pt qchisq pchisq rchisq qf pf rf quantile
@@ -57,10 +59,11 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
                                 sigma2_y=1,
                                 m_bar, CV, rho,
                                 test="cluster",
-                                correction=F,
+                                correction=FALSE,
                                 max_n=1e8,
                                 seed_mix=NULL,
-                                size_mix=1e4) {
+                                size_mix=1e4,
+                                verbose=TRUE) {
 
   if (!is.numeric(power) || power <= 0 || power >= 1 || length(power)!=1)
     stop('Target power must be a single number in (0,1)')
@@ -124,7 +127,7 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
       stop('Effect size of the marginal individual-level treatment effect must be a nonzero number')
     if (!is.numeric(pi_z) || pi_z <= 0 || pi_z >= 1 || length(pi_z)!=1)
       stop('Proportion of individuals that are randomized to the individual-level treatment arm must be a single number in (0,1)')
-    if (correction==T)
+    if (correction==TRUE)
       message('No finite-sample correction will be done for the test for marginal individual-level treatment effect due to adequate degrees of freedom')
 
   } else if (test=="interaction"){
@@ -134,7 +137,7 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
       stop('Proportion of clusters that are randomized to the cluster-level treatment arm must be a single number in (0,1)')
     if (!is.numeric(pi_z) || pi_z <= 0 || pi_z >= 1 || length(pi_z)!=1)
       stop('Proportion of individuals that are randomized to the individual-level treatment arm must be a single number in (0,1)')
-    if (correction==T)
+    if (correction==TRUE)
       message('No finite-sample correction will be done for the interaction test due to adequate degrees of freedom')
 
   } else if (test=="joint"){
@@ -172,6 +175,9 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
 
   if (!is.numeric(size_mix) || size_mix <= 0 || length(size_mix)!=1)
     stop('Sample size for simulating the mix distribution under the finite-sample corrected joint test must be a positive number')
+
+  if (!is.logical(verbose))
+    stop('Message presentation indicator should be a logical argument')
 
 
   #Effect sizes might be negative
@@ -215,47 +221,54 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
 
 
   #Re-iterate the given effect sizes and the chosen test
-  if (test=="cluster"){
+  if (verbose==TRUE){
+    if (test=="cluster"){
 
-    cat('Type of hypothesis test:\nTest for marginal cluster-level treatment effect')
-    cat(paste0('\nGiven effect size:\n', delta_x, " for the marginal cluster-level treatment effect"))
+      cat('Type of hypothesis test:\nTest for marginal cluster-level treatment effect')
+      cat(paste0('\nEffect size:\n', delta_x, " for the marginal cluster-level treatment effect"))
 
-  } else if (test=="individual"){
+    } else if (test=="individual"){
 
-    cat('Type of hypothesis test:\nTest for marginal individual-level treatment effect')
-    cat(paste0('\nGiven effect size:\n', delta_z, " for the marginal individual-level treatment effect"))
+      cat('Type of hypothesis test:\nTest for marginal individual-level treatment effect')
+      cat(paste0('\nEffect size:\n', delta_z, " for the marginal individual-level treatment effect"))
 
-  } else if (test=="interaction"){
+    } else if (test=="interaction"){
 
-    cat('Type of hypothesis test:\nInteraction test')
-    cat(paste0('\nGiven effect size:\n', delta_xz, " for the interaction effect"))
+      cat('Type of hypothesis test:\nInteraction test')
+      cat(paste0('\nEffect size:\n', delta_xz, " for the interaction effect"))
 
-  } else if (test=="joint"){
+    } else if (test=="joint"){
 
-    cat('Type of hypothesis test:\nJoint test')
-    cat(paste0('\nGiven effect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
+      cat('Type of hypothesis test:\nJoint test')
+      cat(paste0('\nEffect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
 
-  } else if (test=="I-U"){
+    } else if (test=="I-U"){
 
-    cat('Type of hypothesis test:\nIntersection-union test')
-    cat(paste0('\nGiven effect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
+      cat('Type of hypothesis test:\nIntersection-union test')
+      cat(paste0('\nEffect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
 
+    }
   }
 
 
 
   ### Test (A1): Test of cluster-level marginal effect
   if (test=="cluster"){
-    if(correction==F){
-      cat("\nA Wald z-test is used without finite-sample correction\n")
 
+    if(correction==FALSE){
+
+      if (verbose==TRUE){
+        cat("\nA Wald z-test is used without finite-sample correction\n")
+      }
       n <- (z_a+z_b)^2*omega_x/delta_x^2
       n.final <- ceiling(n)
       pred.power <- pnorm(sqrt(n.final*delta_x^2/omega_x)-z_a)
 
-    } else if (correction==T){
-      cat("\nA t-test is used for finite-sample correction\n")
+    } else if (correction==TRUE){
 
+      if (verbose==TRUE){
+        cat("\nA t-test is used for finite-sample correction\n")
+      }
       cluster.n <- function(parameter){
         m_bar <- parameter[1]
         rho <- parameter[2]
@@ -282,7 +295,9 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
 
   ### Test (A2): Test of individual-level marginal effect
   if (test=="individual"){
-    cat("\nA Wald z-test is automatically used\n")
+    if (verbose==TRUE){
+      cat("\nA Wald z-test is automatically used\n")
+    }
     n <- (z_a+z_b)^2*omega_z/delta_z^2
     n.final <- ceiling(n)
     pred.power <- pnorm(sqrt(n.final*delta_z^2/omega_z)-z_a)
@@ -290,7 +305,9 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
 
   ### Test (B): Interaction test
   if (test=="interaction"){
-    cat("\nA Wald z-test is automatically used\n")
+    if (verbose==TRUE){
+      cat("\nA Wald z-test is automatically used\n")
+    }
     n <- (z_a+z_b)^2*omega_xz/delta_xz^2
     n.final <- ceiling(n)
     pred.power <- pnorm(sqrt(n.final*delta_xz^2/omega_xz)-z_a)
@@ -298,9 +315,12 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
 
   ### Test (C): Joint test of marginal effects on both treatment levels
   if (test=="joint"){
-    if(correction==F){
-      cat("\nA Chi-square test is used without finite-sample correction\n")
 
+    if(correction==FALSE){
+
+      if (verbose==TRUE){
+        cat("\nA Chi-square test is used without finite-sample correction\n")
+      }
       joint.n <- function(parameter){
         m_bar <- parameter[1]
         rho <- parameter[2]
@@ -327,9 +347,11 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
       n.final <- joint.pred[,1]
       pred.power <- joint.pred[,2]
 
-    } else if (correction==T){
-      cat("\nA simulation-based mixed F-Chi-square test is used for finite-sample correction\n")
+    } else if (correction==TRUE){
 
+      if (verbose==TRUE){
+        cat("\nA simulation-based mixed F-Chi-square test is used for finite-sample correction\n")
+      }
       joint.n <- function(parameter){
         m_bar <- parameter[1]
         rho <- parameter[2]
@@ -367,9 +389,11 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
 
   ### Test (D): Intersection-Union test of marginal effects on both treatment levels
   if (test=="I-U"){
-    if(correction==F){
-      cat("\nA z-based intersection-union test is used without finite-sample correction\n")
 
+    if(correction==FALSE){
+      if (verbose==TRUE){
+        cat("\nA z-based intersection-union test is used without finite-sample correction\n")
+      }
       IU.n <- function(parameter){
         m_bar <- parameter[1]
         rho <- parameter[2]
@@ -396,9 +420,10 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
       n.final <- IU.pred[,1]
       pred.power <- IU.pred[,2]
 
-    } else if (correction==T){
-      cat("\nA mixed t- and z-based intersection-union test is used for finite-sample correction\n")
-
+    } else if (correction==TRUE){
+      if (verbose==TRUE){
+        cat("\nA mixed t- and z-based intersection-union test is used for finite-sample correction\n")
+      }
       IU.n <- function(parameter){
         m_bar <- parameter[1]
         rho <- parameter[2]

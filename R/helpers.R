@@ -21,11 +21,11 @@ marginal.cluster <- function(m_bar, CV, power, delta_x, rho, pi_x, correction, s
   if (omega_x<=0)
     stop("Variance inflation factor is in an abnormal value. Please check whether the provided CV parameter is unrealistically large")
 
-  if (correction==F){
+  if (correction==FALSE){
     n <- (z_a+z_b)^2*omega_x/delta_x^2
     n.final <- ceiling(n)
 
-  } else if (correction==T){
+  } else if (correction==TRUE){
     n <- 3
     try.power <- 0
     while ((try.power < power) & (n < max_n)){
@@ -81,7 +81,7 @@ joint <- function(m_bar, CV, power, delta_x, delta_z, rho, pi_x, pi_z, correctio
   if (omega_x<=0 || omega_z<=0)
     stop("Variance inflation factor is in an abnormal value. Please check whether the provided CV parameter is unrealistically large")
 
-  if (correction==F){
+  if (correction==FALSE){
     n <- 2
     try.power <- 0
     while ((try.power < power) & (n < max_n)){
@@ -93,7 +93,7 @@ joint <- function(m_bar, CV, power, delta_x, delta_z, rho, pi_x, pi_z, correctio
       }
     }
     n.final <- n
-  } else if (correction==T){
+  } else if (correction==TRUE){
     n <- 3
     try.power <- 0
     while ((try.power < power) & (n < max_n)){
@@ -128,7 +128,7 @@ IU <- function(m_bar, CV, power, delta_x, delta_z, rho, pi_x, pi_z, correction, 
   if (omega_x<=0 || omega_z<=0)
     stop("Variance inflation factor is in an abnormal value. Please check whether the provided CV parameter is unrealistically large")
 
-  if (correction==F){
+  if (correction==FALSE){
     n <- 2
     try.power <- 0
     while ((try.power < power) & (n < max_n)){
@@ -145,7 +145,7 @@ IU <- function(m_bar, CV, power, delta_x, delta_z, rho, pi_x, pi_z, correction, 
     }
     n.final <- n
 
-  } else if (correction==T){
+  } else if (correction==TRUE){
     n <- 3
     try.power <- 0
     while ((try.power < power) & (n < max_n)){

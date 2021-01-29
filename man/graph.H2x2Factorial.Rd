@@ -11,8 +11,9 @@ graph.H2x2Factorial(m_lower=10, m_upper=100, m_step=2,
                     power=0.8, alpha=0.05,
                     pi_x=0.5, pi_z=0.5,
                     delta_x=0.25, delta_z=0.33, delta_xz=0.3, sigma2_y=1, rho=0,
-                    test="cluster", correction=F,
-                    max_n=1e8, seed_mix=NULL, size_mix=1e4)
+                    test="cluster", correction=FALSE,
+                    max_n=1e8, seed_mix=NULL, size_mix=1e4,
+                    verbose=TRUE)
 }
 \arguments{
 \item{m_lower}{a numeric value larger than 2 for the lower bound of the mean cluster sizes on the horizontal axis. Default is \code{10}.}
@@ -64,9 +65,11 @@ Default is \code{c("#0F2080", "#85C0F9", "#DDCC77", "#F5793A", "#A95AA1")}. The 
 \item{seed_mix}{an optional setting of a seed for conducting the simulation-based testing under a mixed distribution, which is only functional under \code{test="joint"}. Default is \code{NULL}.}
 
 \item{size_mix}{a pre-specified size for the mixed distribution in the simulation-based procedure, which is only needed under \code{test="joint"}. Default is \code{1e4}.}
+
+\item{verbose}{a logical argument indicating whether the parameter reiterations and supplementary messages should be presented or suppressed. Default is \code{TRUE}.}
 }
 \value{
-\code{graph.H2x2Factorial} returns a plot comparing the sample size requirements under different CV.
+\code{graph.H2x2Factorial} returns a plot comparing the sample size requirements under different CV, with some suppressible messages.
 }
 \description{
 The function \code{graph.H2x2Factorial} plots the sample size estimations or combinations of mean cluster sizes and cluster numbers
@@ -76,6 +79,6 @@ will be automatically adjusted based on the extreme values calculated. A color-b
 }
 \examples{
 #Make a plot under the test for marginal cluster-level treatment effect
-graph.H2x2Factorial(power=0.9, test="cluster", rho=0.1)
+graph.H2x2Factorial(power=0.9, test="cluster", rho=0.1, verbose=FALSE)
 
 }

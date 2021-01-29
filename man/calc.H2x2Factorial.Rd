@@ -8,8 +8,9 @@ calc.H2x2Factorial(power=0.8, n_input=NULL, alpha=0.05,
                    pi_x=0.5, pi_z=0.5,
                    delta_x=0.25, delta_z=0.33, delta_xz=0.3, sigma2_y=1,
                    m_bar=50, CV=0, rho=0,
-                   test="cluster", correction=F,
-                   max_n=1e8, seed_mix=NULL, size_mix=1e4)
+                   test="cluster", correction=FALSE,
+                   max_n=1e8, seed_mix=NULL, size_mix=1e4,
+                   verbose=TRUE)
 }
 \arguments{
 \item{power}{a numeric value between 0 and 1 as the desired power level for sample size estimation. Default is \code{0.8}.}
@@ -48,10 +49,12 @@ calc.H2x2Factorial(power=0.8, n_input=NULL, alpha=0.05,
 \item{seed_mix}{an optional setting of a seed for conducting the simulation-based testing under a mixed distribution, which is only functional under \code{test="joint"}. Default is \code{NULL}.}
 
 \item{size_mix}{a pre-specified size for the mixed distribution in the simulation-based procedure, which is only needed under \code{test="joint"}. Default is \code{1e4}.}
+
+\item{verbose}{a logical argument indicating whether the parameter reiterations and supplementary messages should be presented or suppressed. Default is \code{TRUE}.}
 }
 \value{
 \code{calc.H2x2Factorial} returns an integer representing the required number of clusters or a decimal representing the power that can be achieved by the provided
-sample size, with some useful messages elaborating some vital parameter choices and results (the power will be displayed in 4 decimal places).
+sample size, with some useful and suppressible messages elaborating vital parameter choices and results (the power will be displayed in 4 decimal places; the messages can be suppressed via \code{verbose=FALSE}).
 }
 \description{
 The function \code{calc.H2x2Factorial} estimates the required number of clusters or the achieved power level under different types of
@@ -69,14 +72,14 @@ With \code{correction=T}, finite-sample corrections are customized for the three
 For the joint test, a simulation-based mixed F-chi-square test is used; For the I-U test, a two-sided mixed t- and z-based test is used.
 For the finite-sample corrected joint test, since there does not exist the required parametric distribution, we offer a simulation-based method to generate the null and alternative distributions, and we use the simulated distributions to compute the power and required sample size.
 A seed should be set via \code{seed_mix} for this random process to promote reproducibility, and this is only needed under the joint test with finite-sample correction.
-The five types of \code{test} and \code{correction} are defined in Tian et al.
+The five types of \code{test} and \code{correction} are defined in Tian (under review).
 }
 \examples{
 #Predict the actual power of a joint test when the number of clusters is 10
 joint.power <- calc.H2x2Factorial(n_input=10,
                                   delta_x=0.2, delta_z=0.1,
                                   rho=0.1, CV=0.38,
-                                  test="joint", correction=TRUE, seed_mix=123456)
+                                  test="joint", correction=TRUE, seed_mix=123456, verbose=FALSE)
 print(joint.power)
 
 }
