@@ -31,14 +31,18 @@ devtools::install_github("BillyTian/H2x2Factorial")
 
 ## Example
 
-Here shows some basic examples:
-
-```r
+This is an example for predicting the required number of clusters based on fixed design parameters:
+```{r example calc}
 library(H2x2Factorial)
+example("calc.H2x2Factorial")
+```
 
-calc.H2x2Factorial(n.input=10, delta_x=0.2, delta_z=0.1, test="joint", correction=T, seed.mix=123456, CV=0.38, rho=0.1)
+This is an example for displaying a series of sample size predictions in a table format based on varying design parameters:
+```{r example table}
+example("table.H2x2Factorial")
+```
 
-table.H2x2Factorial(delta_x=0.2, delta_z=0.1, m_bar=c(10,50,100), CV=c(0, 0.3, 0.5), rho=c(0.01, 0.1), test="cluster")
-
-graph.H2x2Factorial(power=0.9, test="cluster", rho=0.1)
+This is an example for plotting the sample size requirements under varying coefficients of variation of cluster sizes:
+```{r example graph}
+example("graph.H2x2Factorial")
 ```
