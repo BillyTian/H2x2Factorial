@@ -28,8 +28,8 @@ variations of cluster sizes (CV). The `graph.H2x2Factorial` function
 plots sample size requirements under different CV in the form of the
 combinations of mean cluster sizes and number of clusters. All of the
 hypothesis tests and sample size methodologies are formalized in “Sample
-Size Calculation in Hierarchical 2x2 Factorial Trials with Unequal
-Cluster Sizes” (under review).
+size calculation in hierarchical 2x2 factorial trials with unequal
+cluster sizes” (under review).
 
 ## Installation
 
