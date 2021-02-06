@@ -33,12 +33,11 @@ cluster sizes” (under review).
 
 ## Installation
 
-The development version of the packages can be installed from
-[GitHub](https://github.com/) with:
+The released version of H2x2Factorial can be installed from
+[CRAN](https://CRAN.R-project.org) with:
 
 ``` r
-# install.packages("devtools")
-devtools::install_github("BillyTian/H2x2Factorial")
+install.packages("H2x2Factorial")
 ```
 
 ## Example
