@@ -1,19 +1,5 @@
 marginal.cluster <- function(m_bar, CV, power, delta_x, rho, pi_x, correction, sigma2_y, a, max_n, z_a, z_b){
 
-  #test
-  #m_bar=30
-  #CV=2.2
-  #power=0.8
-  #delta_x=0.25
-  #rho=0.1
-  #pi_x=0.5
-  #correction=F
-  #sigma2_y=1
-  #a=0.05
-  #max_n=1e8
-  #z_a=qnorm(1-0.05/2)
-  #z_b=qnorm(0.8)
-
   eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
   omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
 
@@ -26,13 +12,14 @@ marginal.cluster <- function(m_bar, CV, power, delta_x, rho, pi_x, correction, s
     n.final <- ceiling(n)
 
   } else if (correction==TRUE){
-    n <- 3
+    n <- 2
     try.power <- 0
     while ((try.power < power) & (n < max_n)){
+      n <- n+1
       #Noncentral t (two-sided)
       try.power <- pt(qt(1-a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n), lower.tail = F)
       + pt(qt(a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n))
-      n <- n+1
+
       if (n==max_n) {
         warning("It achieves the maximum number of cluster. The current prediction does not guarantee the required power")
       }
@@ -82,22 +69,24 @@ joint <- function(m_bar, CV, power, delta_x, delta_z, rho, pi_x, pi_z, correctio
     stop("Variance inflation factor is in an abnormal value. Please check whether the provided CV parameter is unrealistically large")
 
   if (correction==FALSE){
-    n <- 2
+    n <- 1
     try.power <- 0
     while ((try.power < power) & (n < max_n)){
+      n <- n+1
       theta <- n*(delta_x^2/omega_x + delta_z^2/omega_z)
       try.power <- pchisq(qchisq(1-a, 2), 2, ncp = theta, lower.tail = F)
-      n <- n+1
+
       if (n==max_n) {
         warning("It achieves the maximum number of cluster. The current prediction does not guarantee the required power")
       }
     }
     n.final <- n
   } else if (correction==TRUE){
-    n <- 3
+    n <- 2
     try.power <- 0
     while ((try.power < power) & (n < max_n)){
       set.seed(seed_mix)
+      n <- n+1
       #Simulate the mixed distribution (CENTRAL) to identify rejection region bound
       f.distn <- rf(size_mix, 1, n-2)
       chisq.distn <- rchisq(size_mix, 1)
@@ -110,10 +99,13 @@ joint <- function(m_bar, CV, power, delta_x, delta_z, rho, pi_x, pi_z, correctio
       nc.mix.distn <- nc.f.distn + nc.chisq.distn
 
       try.power <- mean(nc.mix.distn>crt.value)
-      n <- n+1
+
+      if (n==max_n) {
+        warning("It achieves the maximum number of cluster. The current prediction does not guarantee the required power")
+      }
     }
+    n.final <- n
   }
-  n.final <- n
   return(n.final)
 }
 
@@ -129,16 +121,17 @@ IU <- function(m_bar, CV, power, delta_x, delta_z, rho, pi_x, pi_z, correction, 
     stop("Variance inflation factor is in an abnormal value. Please check whether the provided CV parameter is unrealistically large")
 
   if (correction==FALSE){
-    n <- 2
+    n <- 1
     try.power <- 0
     while ((try.power < power) & (n < max_n)){
+      n <- n+1
       wmean.c <- sqrt(n)*delta_x/sqrt(omega_x)
       wmean.i <- sqrt(n)*delta_z/sqrt(omega_z)
       try.power <- pnorm(qnorm(1-a/2), mean = wmean.c, lower.tail = F)*pnorm(qnorm(1-a/2), mean = wmean.i, lower.tail = F)
       + pnorm(qnorm(1-a/2), mean = wmean.c, lower.tail = F)*pnorm(qnorm(a/2), mean = wmean.i)
       + pnorm(qnorm(a/2), mean = wmean.c)*pnorm(qnorm(1-a/2), mean = wmean.i, lower.tail = F)
       + pnorm(qnorm(a/2), mean = wmean.c)*pnorm(qnorm(a/2), mean = wmean.i)
-      n <- n+1
+
       if (n==max_n) {
         warning("It achieves the maximum number of cluster. The current prediction does not guarantee the required power")
       }
@@ -146,20 +139,23 @@ IU <- function(m_bar, CV, power, delta_x, delta_z, rho, pi_x, pi_z, correction, 
     n.final <- n
 
   } else if (correction==TRUE){
-    n <- 3
+    n <- 2
     try.power <- 0
     while ((try.power < power) & (n < max_n)){
+      n <- n+1
       c.ncp <- sqrt(n)*delta_x/sqrt(omega_x)
       i.mean <- sqrt(n)*delta_z/sqrt(omega_z)
       try.power <- pt(qt(1-a/2, n-2), n-2, c.ncp, lower.tail = F)*pnorm(qnorm(1-a/2), mean = i.mean, lower.tail = F)
       + pt(qt(1-a/2, n-2), n-2, c.ncp, lower.tail = F)*pnorm(qnorm(a/2), mean = i.mean)
       + pt(qt(a/2, n-2), n-2, c.ncp)*pnorm(qnorm(1-a/2), mean = i.mean, lower.tail = F)
       + pt(qt(a/2, n-2), n-2, c.ncp)*pnorm(qnorm(a/2), mean = i.mean)
-      n <- n+1
+
       if (n==max_n) {
         warning("It achieves the maximum number of cluster. The current prediction does not guarantee the required power")
       }
     }
     n.final <- n
   }
+  return(n.final)
 }
+

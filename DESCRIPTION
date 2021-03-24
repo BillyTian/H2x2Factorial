@@ -1,7 +1,7 @@
 Package: H2x2Factorial
 Title: Sample Size Calculation in Hierarchical 2x2 Factorial Trials
-Version: 1.0.3
-Date: 2021-02-06
+Version: 1.1.0
+Date: 2021-03-23
 Authors@R: c(person("Zizhong","Tian", role = c("aut", "cre"),
             email = "zizhong.tian@yale.edu"),
             person("Denise", "Esserman", role = "aut",

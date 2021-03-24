@@ -275,11 +275,12 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
         CV <- parameter[3]
         eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
         omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
-        n <- 3
+        n <- 2
         try.power <- 0
         while ((try.power < power) & (n < max_n)){
-          try.power <- pt(qt(1-a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n), lower.tail = F) + pt(qt(a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n))
           n <- n+1
+          try.power <- pt(qt(1-a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n), lower.tail = F) + pt(qt(a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n))
+
         }
         return(c(n, try.power))
       }
@@ -329,12 +330,13 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
         eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
         omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
         omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
-        n <- 2
+        n <- 1
         try.power <- 0
         while ((try.power < power) & (n < max_n)){
+          n <- n+1
           theta <- n*(delta_x^2/omega_x + delta_z^2/omega_z)
           try.power <- pchisq(qchisq(1-a, 2), 2, ncp = theta, lower.tail = F)
-          n <- n+1
+
         }
         return(c(n, try.power))
       }
@@ -360,10 +362,11 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
         eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
         omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
         omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
-        n <- 3
+        n <- 2
         try.power <- 0
         while ((try.power < power) & (n < max_n)){
           set.seed(seed_mix)
+          n <- n+1
           f.distn <- rf(size_mix, 1, n-2)
           chisq.distn <- rchisq(size_mix, 1)
           mix.distn <- f.distn + chisq.distn
@@ -373,7 +376,7 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
           nc.chisq.distn <- rchisq(size_mix, 1, ncp = n*delta_z^2/omega_z)
           nc.mix.distn <- nc.f.distn + nc.chisq.distn
           try.power <- mean(nc.mix.distn>crt.value)
-          n <- n+1
+
         }
         return(c(n, try.power))
       }
@@ -402,13 +405,14 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
         eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
         omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
         omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
-        n <- 2
+        n <- 1
         try.power <- 0
         while ((try.power < power) & (n < max_n)){
+          n <- n+1
           wmean.c <- sqrt(n)*delta_x/sqrt(omega_x)
           wmean.i <- sqrt(n)*delta_z/sqrt(omega_z)
           try.power <- pnorm(qnorm(1-a/2), mean = wmean.c, lower.tail = F)*pnorm(qnorm(1-a/2), mean = wmean.i, lower.tail = F) + pnorm(qnorm(1-a/2), mean = wmean.c, lower.tail = F)*pnorm(qnorm(a/2), mean = wmean.i) + pnorm(qnorm(a/2), mean = wmean.c)*pnorm(qnorm(1-a/2), mean = wmean.i, lower.tail = F) + pnorm(qnorm(a/2), mean = wmean.c)*pnorm(qnorm(a/2), mean = wmean.i)
-          n <- n+1
+
         }
         return(c(n, try.power))
       }
@@ -432,13 +436,14 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
         eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
         omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
         omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
-        n <- 3
+        n <- 2
         try.power <- 0
         while ((try.power < power) & (n < max_n)){
+          n <- n+1
           c.ncp <- sqrt(n)*delta_x/sqrt(omega_x)
           i.mean <- sqrt(n)*delta_z/sqrt(omega_z)
           try.power <- pt(qt(1-a/2, n-2), n-2, c.ncp, lower.tail = F)*pnorm(qnorm(1-a/2), mean = i.mean, lower.tail = F) + pt(qt(1-a/2, n-2), n-2, c.ncp, lower.tail = F)*pnorm(qnorm(a/2), mean = i.mean) + pt(qt(a/2, n-2), n-2, c.ncp)*pnorm(qnorm(1-a/2), mean = i.mean, lower.tail = F) + pt(qt(a/2, n-2), n-2, c.ncp)*pnorm(qnorm(a/2), mean = i.mean)
-          n <- n+1
+
         }
         return(c(n, try.power))
       }
