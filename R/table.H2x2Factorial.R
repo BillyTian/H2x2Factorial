@@ -9,7 +9,7 @@
 #'                     pi_x=0.5, pi_z=0.5,
 #'                     delta_x, delta_z, delta_xz, sigma2_y=1,
 #'                     m_bar, CV, rho,
-#'                     test="cluster", correction=FALSE,
+#'                     estimand="controlled", test="cluster", correction=FALSE,
 #'                     max_n=1e8, seed_mix=NULL, size_mix=1e4,
 #'                     verbose=TRUE)
 #'
@@ -24,6 +24,8 @@
 #' @param m_bar a vector of numeric values larger than 2 for a series of mean cluster sizes.
 #' @param CV a vector of positive numeric values for a series of coefficients of variation of the cluster sizes.
 #' @param rho a vector of numeric values between 0 and 1 for a series of intraclass correlation coefficients.
+#' @param estimand a character argument indicating the type of treatment effect estimand. Supported values include \code{"controlled"}
+#' (controlled or main effect estimand) and \code{"natural"} (natural or marginal effect estimand). Default is \code{"controlled"}.
 #' @param test a character argument indicating the type of hypothesis test of interest. Supported values include
 #' \code{"cluster"} (test for marginal cluster-level treatment effect), \code{"individual"} (test for marginal individual-level treatment effect),
 #' \code{"interaction"} (interaction test for the two treatments), \code{"joint"} (joint test for the two marginal treatment effects),
@@ -36,7 +38,7 @@
 #'
 #' @details
 #' If the user further requires a vector of \code{power} or other parameters like \code{pi_x}, which invokes the need for multiple tables,
-#' an external loop could be easily written using this function to produce many data frames.
+#' an external loop could be easily written using this function to produce multiple data frames.
 #'
 #' @return \code{table.H2x2Factorial} returns a data frame with inputs of \code{m_bar}, \code{rho}, and \code{CV} varied in a factorial setting, the predicted number of clusters \code{n} under the power requirement,
 #' and the actual power \code{predicted.power} the estimated sample size can help to achieve, with some suppressible messages.
@@ -48,9 +50,10 @@
 #' #Make a result table by providing three mean cluster sizes, three CV, and three ICC
 #' table.cluster <- table.H2x2Factorial(delta_x=0.2, delta_z=0.1,
 #'                                      m_bar=c(10,50,100), CV=c(0, 0.3, 0.5), rho=c(0.01, 0.1),
-#'                                      test="cluster", verbose=FALSE)
+#'                                      estimand="controlled", test="cluster", verbose=FALSE)
 #' table.cluster
 #'
+#' @import mvtnorm
 #' @importFrom stats qnorm pnorm qt pt qchisq pchisq rchisq qf pf rf quantile
 #'
 table.H2x2Factorial <- function(power=0.8, alpha=0.05,
@@ -58,6 +61,7 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
                                 delta_x=0.25, delta_z=0.33, delta_xz=0.3,
                                 sigma2_y=1,
                                 m_bar, CV, rho,
+                                estimand="controlled",
                                 test="cluster",
                                 correction=FALSE,
                                 max_n=1e8,
@@ -112,6 +116,9 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
     }
     warning(paste0("Duplicated elements of the rho input is deleted. rho input is changed to:\n(", rho.list, ")\n"))
   }
+
+  if ( !(estimand %in% c("controlled", "natural")) || length(estimand)!=1)
+    stop('Type of treatment effect estimand should be a single choice from "controlled" and "natural"')
 
   if ( !(test %in% c("cluster", "individual", "interaction", "joint", "I-U")) || length(test)!=1)
     stop('Type of hypothesis tests should be a single choice from "cluster", "individual", "interaction", "joint", and "I-U"')
@@ -213,250 +220,495 @@ table.H2x2Factorial <- function(power=0.8, alpha=0.05,
   omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
   omega_xz <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_x*(1-pi_x)*pi_z*(1-pi_z))
 
+  omega_2 <- sigma2_y*(1+(m_bar-1)*rho)/(pi_x*(1-pi_x)*m_bar) *
+    ( (1+(m_bar-1)*rho)^2/((1+(m_bar-1)*rho)^2-CV^2*m_bar*rho*(1-rho)) + pi_z*(1-rho)*(1+(m_bar-1)*rho)^2/((1-pi_z)*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho))) )
+  omega_3 <- sigma2_y*(1-rho)*(1+(m_bar-1)*rho)^3/((1-pi_z)*pi_x*(1-pi_x)*m_bar*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho)))
+  omega_23 <- pi_z*omega_3
+
   #Check the omega to be positive
   for (i in length(omega_x)){
-    if (omega_x[i]<=0 || omega_z[i]<=0 || omega_xz[i]<=0)
+    if (omega_x[i]<=0 || omega_z[i]<=0 || omega_xz[i]<=0 || omega_2[i]<=0 || omega_3[i]<=0)
       stop("Variance inflation factor is in an abnormal value. Please check whether the provided CV parameter is unrealistically large")
   }
 
 
   #Re-iterate the given effect sizes and the chosen test
   if (verbose==TRUE){
+    if (estimand=="controlled"){
+      cat('Type of treatment effect estimand:\nContolled (main) effect')
+
+      if (test=="cluster"){
+        cat('\nType of hypothesis test:\nSeparate test for the cluster-level treatment effect')
+        cat(paste0('\nEffect size:\n', delta_x, " for the controlled effect of the cluster-level treatment"))
+
+      } else if (test=="individual"){
+        cat('\nType of hypothesis test:\nSeparate test for the individual-level treatment effect')
+        cat(paste0('\nEffect size:\n', delta_z, " for the controlled effect of the individual-level treatment"))
+
+      } else if (test=="interaction"){
+        cat('\nType of hypothesis test:\nInteraction test')
+        cat(paste0('\nEffect size:\n', delta_xz, " for the interaction effect"))
+
+      } else if (test=="joint"){
+        cat('\nType of hypothesis test:\nJoint test')
+        cat(paste0('\nEffect sizes:\n', delta_x, " for the controlled effect of the cluster-level treatmen\n", delta_z, " for the controlled effect of the individual-level treatment"))
+
+      } else if (test=="I-U"){
+        cat('\nType of hypothesis test:\nIntersection-union test')
+        cat(paste0('\nEffect sizes:\n', delta_x, " for the controlled effect of the cluster-level treatment\n", delta_z, " for the controlled effect of the individual-level treatment"))
+
+      }
+
+    } else if (estimand=="natural"){
+      cat('Type of treatment effect estimand:\nNatural (marginal) effect')
+
+      if (test=="cluster"){
+        cat('\nType of hypothesis test:\nSeparate test for the cluster-level treatment effect')
+        cat(paste0('\nEffect size:\n', delta_x, " for the natural effect of the cluster-level treatment"))
+
+      } else if (test=="individual"){
+        cat('\nType of hypothesis test:\nSeparate test for the individual-level treatment effect')
+        cat(paste0('\nEffect size:\n', delta_z, " for the natural effect of the individual-level treatment"))
+
+      } else if (test=="interaction"){
+        cat('\nType of hypothesis test:\nInteraction test')
+        cat(paste0('\nEffect size:\n', delta_xz, " for the interaction effect"))
+
+      } else if (test=="joint"){
+        cat('\nType of hypothesis test:\nJoint test')
+        cat(paste0('\nEffect sizes:\n', delta_x, " for the natural effect of the cluster-level treatmen\n", delta_z, " for the natural effect of the individual-level treatment"))
+
+      } else if (test=="I-U"){
+        cat('\nType of hypothesis test:\nIntersection-union test')
+        cat(paste0('\nEffect sizes:\n', delta_x, " for the natural effect of the cluster-level treatment\n", delta_z, " for the natural effect of the individual-level treatment"))
+
+      }
+    }
+
+  }
+
+
+  if (estimand=="controlled"){
+
     if (test=="cluster"){
 
-      cat('Type of hypothesis test:\nTest for marginal cluster-level treatment effect')
-      cat(paste0('\nEffect size:\n', delta_x, " for the marginal cluster-level treatment effect"))
+      if(correction==FALSE){
 
-    } else if (test=="individual"){
+        if (verbose==TRUE){
+          cat("\nA Wald z-test is used without finite-sample correction\n")
+        }
+        n <- (z_a+z_b)^2*omega_2/delta_x^2
+        n.final <- ceiling(n)
+        pred.power <- pnorm(sqrt(n.final*delta_x^2/omega_2)-z_a)
 
-      cat('Type of hypothesis test:\nTest for marginal individual-level treatment effect')
-      cat(paste0('\nEffect size:\n', delta_z, " for the marginal individual-level treatment effect"))
+      } else if (correction==TRUE){
 
-    } else if (test=="interaction"){
+        if (verbose==TRUE){
+          cat("\nA t-test is used for finite-sample correction\n")
+        }
+        cluster.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          omega_2 <- sigma2_y*(1+(m_bar-1)*rho)/(pi_x*(1-pi_x)*m_bar) *
+            ( (1+(m_bar-1)*rho)^2/((1+(m_bar-1)*rho)^2-CV^2*m_bar*rho*(1-rho)) + pi_z*(1-rho)*(1+(m_bar-1)*rho)^2/((1-pi_z)*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho))) )
+          n <- 2
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            n <- n+1
+            try.power <- pt(qt(1-a/2, n-2), n-2, ncp=delta_x/sqrt(omega_2/n), lower.tail = F)
+            + pt(qt(a/2, n-2), n-2, ncp=delta_x/sqrt(omega_2/n))
 
-      cat('Type of hypothesis test:\nInteraction test')
-      cat(paste0('\nEffect size:\n', delta_xz, " for the interaction effect"))
+          }
+          return(c(n, try.power))
+        }
 
-    } else if (test=="joint"){
-
-      cat('Type of hypothesis test:\nJoint test')
-      cat(paste0('\nEffect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
-
-    } else if (test=="I-U"){
-
-      cat('Type of hypothesis test:\nIntersection-union test')
-      cat(paste0('\nEffect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
-
-    }
-  }
-
-
-
-  ### Test (A1): Test of cluster-level marginal effect
-  if (test=="cluster"){
-
-    if(correction==FALSE){
-
-      if (verbose==TRUE){
-        cat("\nA Wald z-test is used without finite-sample correction\n")
+        cluster.pred <- NULL
+        for (i in 1:nrow(table)){
+          cluster.pred <- rbind(cluster.pred, cluster.n(parameter=unlist(table[i,])))
+        }
+        n.final <- cluster.pred[,1]
+        pred.power <- cluster.pred[,2]
       }
-      n <- (z_a+z_b)^2*omega_x/delta_x^2
+    }
+
+
+    if (test=="individual"){
+      if (verbose==TRUE){
+        cat("\nA Wald z-test is automatically used\n")
+      }
+      n <- (z_a+z_b)^2*omega_2/delta_z^2
       n.final <- ceiling(n)
-      pred.power <- pnorm(sqrt(n.final*delta_x^2/omega_x)-z_a)
-
-    } else if (correction==TRUE){
-
-      if (verbose==TRUE){
-        cat("\nA t-test is used for finite-sample correction\n")
-      }
-      cluster.n <- function(parameter){
-        m_bar <- parameter[1]
-        rho <- parameter[2]
-        CV <- parameter[3]
-        eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
-        omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
-        n <- 2
-        try.power <- 0
-        while ((try.power < power) & (n < max_n)){
-          n <- n+1
-          try.power <- pt(qt(1-a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n), lower.tail = F) + pt(qt(a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n))
-
-        }
-        return(c(n, try.power))
-      }
-
-      cluster.pred <- NULL
-      for (i in 1:nrow(table)){
-        cluster.pred <- rbind(cluster.pred, cluster.n(parameter=unlist(table[i,])))
-      }
-      n.final <- cluster.pred[,1]
-      pred.power <- cluster.pred[,2]
+      pred.power <- pnorm(sqrt(n.final*delta_z^2/omega_2)-z_a)
     }
+
+
+    if (test=="interaction"){
+      if (verbose==TRUE){
+        cat("\nA Wald z-test is automatically used\n")
+      }
+      n <- (z_a+z_b)^2*omega_xz/delta_xz^2
+      n.final <- ceiling(n)
+      pred.power <- pnorm(sqrt(n.final*delta_xz^2/omega_xz)-z_a)
+    }
+
+
+    if (test=="joint"){
+
+      if(correction==FALSE){
+
+        if (verbose==TRUE){
+          cat("\nA Chi-square test is used without finite-sample correction\n")
+        }
+        joint.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          omega_2 <- sigma2_y*(1+(m_bar-1)*rho)/(pi_x*(1-pi_x)*m_bar) *
+            ( (1+(m_bar-1)*rho)^2/((1+(m_bar-1)*rho)^2-CV^2*m_bar*rho*(1-rho)) + pi_z*(1-rho)*(1+(m_bar-1)*rho)^2/((1-pi_z)*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho))) )
+          omega_3 <- sigma2_y*(1-rho)*(1+(m_bar-1)*rho)^3/((1-pi_z)*pi_x*(1-pi_x)*m_bar*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho)))
+          omega_23 <- pi_z*omega_3
+          n <- 1
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            n <- n+1
+            beta23 <- c(delta_x, delta_z)
+            omega <- matrix(c(omega_2, omega_23, omega_23, omega_3), nrow=2, byrow=T)
+            theta <- n*t(beta23) %*% solve(omega) %*% beta23
+            try.power <- pchisq(qchisq(1-a, 2), 2, ncp = theta, lower.tail = F)
+
+          }
+          return(c(n, try.power))
+        }
+
+        joint.pred <- NULL
+        for (i in 1:nrow(table)){
+          joint.pred <- rbind(joint.pred, joint.n(parameter=unlist(table[i,])))
+        }
+
+        n.final <- joint.pred[,1]
+        pred.power <- joint.pred[,2]
+
+      } else if (correction==TRUE){
+
+        if (verbose==TRUE){
+          cat("\nA F-test is used for finite-sample correction\n")
+        }
+        joint.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          omega_2 <- sigma2_y*(1+(m_bar-1)*rho)/(pi_x*(1-pi_x)*m_bar) *
+            ( (1+(m_bar-1)*rho)^2/((1+(m_bar-1)*rho)^2-CV^2*m_bar*rho*(1-rho)) + pi_z*(1-rho)*(1+(m_bar-1)*rho)^2/((1-pi_z)*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho))) )
+          omega_3 <- sigma2_y*(1-rho)*(1+(m_bar-1)*rho)^3/((1-pi_z)*pi_x*(1-pi_x)*m_bar*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho)))
+          omega_23 <- pi_z*omega_3
+          n <- 2
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            n <- n+1
+            beta23 <- c(delta_x, delta_z)
+            omega <- matrix(c(omega_2, omega_23, omega_23, omega_3), nrow=2, byrow=T)
+            theta <- n*t(beta23) %*% solve(omega) %*% beta23
+            try.power <- pf(qf(1-a, 2, n-2), 2, n-2, ncp = theta, lower.tail = F)
+
+          }
+          return(c(n, try.power))
+        }
+
+        joint.pred <- NULL
+        for (i in 1:nrow(table)){
+          joint.pred <- rbind(joint.pred, joint.n(parameter=unlist(table[i,])))
+        }
+        n.final <- joint.pred[,1]
+        pred.power <- joint.pred[,2]
+      }
+    }
+
+
+    if (test=="I-U"){
+
+      if(correction==FALSE){
+        if (verbose==TRUE){
+          cat("\nA z-based intersection-union test is used without finite-sample correction\n")
+        }
+        IU.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          omega_2 <- sigma2_y*(1+(m_bar-1)*rho)/(pi_x*(1-pi_x)*m_bar) *
+            ( (1+(m_bar-1)*rho)^2/((1+(m_bar-1)*rho)^2-CV^2*m_bar*rho*(1-rho)) + pi_z*(1-rho)*(1+(m_bar-1)*rho)^2/((1-pi_z)*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho))) )
+          omega_3 <- sigma2_y*(1-rho)*(1+(m_bar-1)*rho)^3/((1-pi_z)*pi_x*(1-pi_x)*m_bar*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho)))
+          omega_23 <- pi_z*omega_3
+          n <- 1
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            n <- n+1
+            mean_W <- c(delta_x/sqrt(omega_2/n), delta_z/sqrt(omega_3/n))
+            cov_W <- (omega_23/n) / (sqrt(omega_2/n)*sqrt(omega_3/n))
+            sigma_W <- matrix(c(1, cov_W, cov_W, 1), nrow=2, byrow=T)
+
+            try.power <- pmvnorm(lower=rep(qnorm(1-a/2),2), upper=rep(Inf,2), mean=mean_W, sigma=sigma_W) +
+              pmvnorm(lower=c(qnorm(1-a/2),-Inf), upper=c(Inf,qnorm(a/2)), mean=mean_W, sigma=sigma_W) +
+              pmvnorm(lower=rep(-Inf,2), upper=rep(qnorm(a/2),2), mean=mean_W, sigma=sigma_W) +
+              pmvnorm(lower=c(-Inf,qnorm(a/2)), upper=c(qnorm(a/2),Inf), mean=mean_W, sigma=sigma_W)
+          }
+          return(c(n, try.power))
+        }
+
+        IU.pred <- NULL
+        for (i in 1:nrow(table)){
+          IU.pred <- rbind(IU.pred, IU.n(parameter=unlist(table[i,])))
+        }
+        n.final <- IU.pred[,1]
+        pred.power <- IU.pred[,2]
+
+      } else if (correction==TRUE){
+        if (verbose==TRUE){
+          cat("\nA t-based intersection-union test is used for finite-sample correction\n")
+        }
+        IU.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          omega_2 <- sigma2_y*(1+(m_bar-1)*rho)/(pi_x*(1-pi_x)*m_bar) *
+            ( (1+(m_bar-1)*rho)^2/((1+(m_bar-1)*rho)^2-CV^2*m_bar*rho*(1-rho)) + pi_z*(1-rho)*(1+(m_bar-1)*rho)^2/((1-pi_z)*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho))) )
+          omega_3 <- sigma2_y*(1-rho)*(1+(m_bar-1)*rho)^3/((1-pi_z)*pi_x*(1-pi_x)*m_bar*((1+(m_bar-2)*rho)*(1+(m_bar-1)*rho)^2 + CV^2*m_bar*rho^2*(1-rho)))
+          omega_23 <- pi_z*omega_3
+          n <- 2
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            n <- n+1
+            mean_W <- c(delta_x/sqrt(omega_2/n), delta_z/sqrt(omega_3/n))
+            cov_W <- (omega_23/n) / (sqrt(omega_2/n)*sqrt(omega_3/n))
+            sigma_W <- matrix(c(1, cov_W, cov_W, 1), nrow=2, byrow=T)
+
+            try.power <- pmvt(df=n-2, lower=c(qt(1-a/2, n-2), qt(1-a/2, n-2)), upper=rep(Inf,2), delta=mean_W, sigma=sigma_W) +
+              pmvt(df=n-2, lower=c(qt(1-a/2, n-2),-Inf), upper=c(Inf,qt(a/2, n-2)), delta=mean_W, sigma=sigma_W) +
+              pmvt(df=n-2, lower=rep(-Inf,2), upper=c(qt(a/2, n-2), qt(a/2, n-2)), delta=mean_W, sigma=sigma_W) +
+              pmvt(df=n-2, lower=c(-Inf,qt(a/2, n-2)), upper=c(qt(a/2, n-2),Inf), delta=mean_W, sigma=sigma_W)
+          }
+          return(c(n, try.power))
+        }
+
+        IU.pred <- NULL
+        for (i in 1:nrow(table)){
+          IU.pred <- rbind(IU.pred, IU.n(parameter=unlist(table[i,])))
+        }
+
+        n.final <- IU.pred[,1]
+        pred.power <- IU.pred[,2]
+      }
+    }
+
+  } else if (estimand=="natural"){
+
+    if (test=="cluster"){
+
+      if(correction==FALSE){
+
+        if (verbose==TRUE){
+          cat("\nA Wald z-test is used without finite-sample correction\n")
+        }
+        n <- (z_a+z_b)^2*omega_x/delta_x^2
+        n.final <- ceiling(n)
+        pred.power <- pnorm(sqrt(n.final*delta_x^2/omega_x)-z_a)
+
+      } else if (correction==TRUE){
+
+        if (verbose==TRUE){
+          cat("\nA t-test is used for finite-sample correction\n")
+        }
+        cluster.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
+          omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
+          n <- 2
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            n <- n+1
+            try.power <- pt(qt(1-a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n), lower.tail = F) + pt(qt(a/2, n-2), n-2, ncp=delta_x/sqrt(omega_x/n))
+
+          }
+          return(c(n, try.power))
+        }
+
+        cluster.pred <- NULL
+        for (i in 1:nrow(table)){
+          cluster.pred <- rbind(cluster.pred, cluster.n(parameter=unlist(table[i,])))
+        }
+        n.final <- cluster.pred[,1]
+        pred.power <- cluster.pred[,2]
+      }
+    }
+
+
+    if (test=="individual"){
+      if (verbose==TRUE){
+        cat("\nA Wald z-test is automatically used\n")
+      }
+      n <- (z_a+z_b)^2*omega_z/delta_z^2
+      n.final <- ceiling(n)
+      pred.power <- pnorm(sqrt(n.final*delta_z^2/omega_z)-z_a)
+    }
+
+
+    if (test=="interaction"){
+      if (verbose==TRUE){
+        cat("\nA Wald z-test is automatically used\n")
+      }
+      n <- (z_a+z_b)^2*omega_xz/delta_xz^2
+      n.final <- ceiling(n)
+      pred.power <- pnorm(sqrt(n.final*delta_xz^2/omega_xz)-z_a)
+    }
+
+
+    if (test=="joint"){
+
+      if(correction==FALSE){
+
+        if (verbose==TRUE){
+          cat("\nA Chi-square test is used without finite-sample correction\n")
+        }
+        joint.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          eta1 <- -m_bar*rho/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))
+          eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
+          omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
+          omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
+          n <- 1
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            n <- n+1
+            theta <- n*(delta_x^2/omega_x + delta_z^2/omega_z)
+            try.power <- pchisq(qchisq(1-a, 2), 2, ncp = theta, lower.tail = F)
+
+          }
+          return(c(n, try.power))
+        }
+
+        joint.pred <- NULL
+        for (i in 1:nrow(table)){
+          joint.pred <- rbind(joint.pred, joint.n(parameter=unlist(table[i,])))
+        }
+
+        n.final <- joint.pred[,1]
+        pred.power <- joint.pred[,2]
+
+      } else if (correction==TRUE){
+
+        if (verbose==TRUE){
+          cat("\nA simulation-based mixed F-Chi-square test is used for finite-sample correction\n")
+        }
+        joint.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          eta1 <- -m_bar*rho/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))
+          eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
+          omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
+          omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
+          n <- 2
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            set.seed(seed_mix)
+            n <- n+1
+            f.distn <- rf(size_mix, 1, n-2)
+            chisq.distn <- rchisq(size_mix, 1)
+            mix.distn <- f.distn + chisq.distn
+            crt.value <- quantile(mix.distn, 1-a)
+
+            nc.f.distn <- rf(size_mix, 1, n-2, ncp = n*delta_x^2/omega_x)
+            nc.chisq.distn <- rchisq(size_mix, 1, ncp = n*delta_z^2/omega_z)
+            nc.mix.distn <- nc.f.distn + nc.chisq.distn
+            try.power <- mean(nc.mix.distn>crt.value)
+
+          }
+          return(c(n, try.power))
+        }
+
+        joint.pred <- NULL
+        for (i in 1:nrow(table)){
+          joint.pred <- rbind(joint.pred, joint.n(parameter=unlist(table[i,])))
+        }
+        n.final <- joint.pred[,1]
+        pred.power <- joint.pred[,2]
+      }
+    }
+
+
+    if (test=="I-U"){
+
+      if(correction==FALSE){
+        if (verbose==TRUE){
+          cat("\nA z-based intersection-union test is used without finite-sample correction\n")
+        }
+        IU.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          eta1 <- -m_bar*rho/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))
+          eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
+          omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
+          omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
+          n <- 1
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            n <- n+1
+            wmean.c <- sqrt(n)*delta_x/sqrt(omega_x)
+            wmean.i <- sqrt(n)*delta_z/sqrt(omega_z)
+            try.power <- pnorm(qnorm(1-a/2), mean = wmean.c, lower.tail = F)*pnorm(qnorm(1-a/2), mean = wmean.i, lower.tail = F) + pnorm(qnorm(1-a/2), mean = wmean.c, lower.tail = F)*pnorm(qnorm(a/2), mean = wmean.i) + pnorm(qnorm(a/2), mean = wmean.c)*pnorm(qnorm(1-a/2), mean = wmean.i, lower.tail = F) + pnorm(qnorm(a/2), mean = wmean.c)*pnorm(qnorm(a/2), mean = wmean.i)
+
+          }
+          return(c(n, try.power))
+        }
+
+        IU.pred <- NULL
+        for (i in 1:nrow(table)){
+          IU.pred <- rbind(IU.pred, IU.n(parameter=unlist(table[i,])))
+        }
+        n.final <- IU.pred[,1]
+        pred.power <- IU.pred[,2]
+
+      } else if (correction==TRUE){
+        if (verbose==TRUE){
+          cat("\nA mixed t- and z-based intersection-union test is used for finite-sample correction\n")
+        }
+        IU.n <- function(parameter){
+          m_bar <- parameter[1]
+          rho <- parameter[2]
+          CV <- parameter[3]
+          eta1 <- -m_bar*rho/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))
+          eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
+          omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
+          omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
+          n <- 2
+          try.power <- 0
+          while ((try.power < power) & (n < max_n)){
+            n <- n+1
+            c.ncp <- sqrt(n)*delta_x/sqrt(omega_x)
+            i.mean <- sqrt(n)*delta_z/sqrt(omega_z)
+            try.power <- pt(qt(1-a/2, n-2), n-2, c.ncp, lower.tail = F)*pnorm(qnorm(1-a/2), mean = i.mean, lower.tail = F) + pt(qt(1-a/2, n-2), n-2, c.ncp, lower.tail = F)*pnorm(qnorm(a/2), mean = i.mean) + pt(qt(a/2, n-2), n-2, c.ncp)*pnorm(qnorm(1-a/2), mean = i.mean, lower.tail = F) + pt(qt(a/2, n-2), n-2, c.ncp)*pnorm(qnorm(a/2), mean = i.mean)
+
+          }
+          return(c(n, try.power))
+        }
+
+        IU.pred <- NULL
+        for (i in 1:nrow(table)){
+          IU.pred <- rbind(IU.pred, IU.n(parameter=unlist(table[i,])))
+        }
+
+        n.final <- IU.pred[,1]
+        pred.power <- IU.pred[,2]
+      }
+    }
+
   }
 
-  ### Test (A2): Test of individual-level marginal effect
-  if (test=="individual"){
-    if (verbose==TRUE){
-      cat("\nA Wald z-test is automatically used\n")
-    }
-    n <- (z_a+z_b)^2*omega_z/delta_z^2
-    n.final <- ceiling(n)
-    pred.power <- pnorm(sqrt(n.final*delta_z^2/omega_z)-z_a)
-  }
-
-  ### Test (B): Interaction test
-  if (test=="interaction"){
-    if (verbose==TRUE){
-      cat("\nA Wald z-test is automatically used\n")
-    }
-    n <- (z_a+z_b)^2*omega_xz/delta_xz^2
-    n.final <- ceiling(n)
-    pred.power <- pnorm(sqrt(n.final*delta_xz^2/omega_xz)-z_a)
-  }
-
-  ### Test (C): Joint test of marginal effects on both treatment levels
-  if (test=="joint"){
-
-    if(correction==FALSE){
-
-      if (verbose==TRUE){
-        cat("\nA Chi-square test is used without finite-sample correction\n")
-      }
-      joint.n <- function(parameter){
-        m_bar <- parameter[1]
-        rho <- parameter[2]
-        CV <- parameter[3]
-        eta1 <- -m_bar*rho/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))
-        eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
-        omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
-        omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
-        n <- 1
-        try.power <- 0
-        while ((try.power < power) & (n < max_n)){
-          n <- n+1
-          theta <- n*(delta_x^2/omega_x + delta_z^2/omega_z)
-          try.power <- pchisq(qchisq(1-a, 2), 2, ncp = theta, lower.tail = F)
-
-        }
-        return(c(n, try.power))
-      }
-
-      joint.pred <- NULL
-      for (i in 1:nrow(table)){
-        joint.pred <- rbind(joint.pred, joint.n(parameter=unlist(table[i,])))
-      }
-
-      n.final <- joint.pred[,1]
-      pred.power <- joint.pred[,2]
-
-    } else if (correction==TRUE){
-
-      if (verbose==TRUE){
-        cat("\nA simulation-based mixed F-Chi-square test is used for finite-sample correction\n")
-      }
-      joint.n <- function(parameter){
-        m_bar <- parameter[1]
-        rho <- parameter[2]
-        CV <- parameter[3]
-        eta1 <- -m_bar*rho/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))
-        eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
-        omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
-        omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
-        n <- 2
-        try.power <- 0
-        while ((try.power < power) & (n < max_n)){
-          set.seed(seed_mix)
-          n <- n+1
-          f.distn <- rf(size_mix, 1, n-2)
-          chisq.distn <- rchisq(size_mix, 1)
-          mix.distn <- f.distn + chisq.distn
-          crt.value <- quantile(mix.distn, 1-a)
-
-          nc.f.distn <- rf(size_mix, 1, n-2, ncp = n*delta_x^2/omega_x)
-          nc.chisq.distn <- rchisq(size_mix, 1, ncp = n*delta_z^2/omega_z)
-          nc.mix.distn <- nc.f.distn + nc.chisq.distn
-          try.power <- mean(nc.mix.distn>crt.value)
-
-        }
-        return(c(n, try.power))
-      }
-
-      joint.pred <- NULL
-      for (i in 1:nrow(table)){
-        joint.pred <- rbind(joint.pred, joint.n(parameter=unlist(table[i,])))
-      }
-      n.final <- joint.pred[,1]
-      pred.power <- joint.pred[,2]
-    }
-  }
-
-  ### Test (D): Intersection-Union test of marginal effects on both treatment levels
-  if (test=="I-U"){
-
-    if(correction==FALSE){
-      if (verbose==TRUE){
-        cat("\nA z-based intersection-union test is used without finite-sample correction\n")
-      }
-      IU.n <- function(parameter){
-        m_bar <- parameter[1]
-        rho <- parameter[2]
-        CV <- parameter[3]
-        eta1 <- -m_bar*rho/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))
-        eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
-        omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
-        omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
-        n <- 1
-        try.power <- 0
-        while ((try.power < power) & (n < max_n)){
-          n <- n+1
-          wmean.c <- sqrt(n)*delta_x/sqrt(omega_x)
-          wmean.i <- sqrt(n)*delta_z/sqrt(omega_z)
-          try.power <- pnorm(qnorm(1-a/2), mean = wmean.c, lower.tail = F)*pnorm(qnorm(1-a/2), mean = wmean.i, lower.tail = F) + pnorm(qnorm(1-a/2), mean = wmean.c, lower.tail = F)*pnorm(qnorm(a/2), mean = wmean.i) + pnorm(qnorm(a/2), mean = wmean.c)*pnorm(qnorm(1-a/2), mean = wmean.i, lower.tail = F) + pnorm(qnorm(a/2), mean = wmean.c)*pnorm(qnorm(a/2), mean = wmean.i)
-
-        }
-        return(c(n, try.power))
-      }
-
-      IU.pred <- NULL
-      for (i in 1:nrow(table)){
-        IU.pred <- rbind(IU.pred, IU.n(parameter=unlist(table[i,])))
-      }
-      n.final <- IU.pred[,1]
-      pred.power <- IU.pred[,2]
-
-    } else if (correction==TRUE){
-      if (verbose==TRUE){
-        cat("\nA mixed t- and z-based intersection-union test is used for finite-sample correction\n")
-      }
-      IU.n <- function(parameter){
-        m_bar <- parameter[1]
-        rho <- parameter[2]
-        CV <- parameter[3]
-        eta1 <- -m_bar*rho/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))
-        eta2 <- m_bar*(1-rho)/(1+(m_bar-1)*rho)*(1-CV^2*m_bar*rho*(1-rho)/((1+(m_bar-1)*rho)^2))-m_bar
-        omega_x <- sigma2_y*(1-rho)/((m_bar+eta2)*pi_x*(1-pi_x))
-        omega_z <- sigma2_y*(1-rho)/((m_bar+eta1)*pi_z*(1-pi_z))
-        n <- 2
-        try.power <- 0
-        while ((try.power < power) & (n < max_n)){
-          n <- n+1
-          c.ncp <- sqrt(n)*delta_x/sqrt(omega_x)
-          i.mean <- sqrt(n)*delta_z/sqrt(omega_z)
-          try.power <- pt(qt(1-a/2, n-2), n-2, c.ncp, lower.tail = F)*pnorm(qnorm(1-a/2), mean = i.mean, lower.tail = F) + pt(qt(1-a/2, n-2), n-2, c.ncp, lower.tail = F)*pnorm(qnorm(a/2), mean = i.mean) + pt(qt(a/2, n-2), n-2, c.ncp)*pnorm(qnorm(1-a/2), mean = i.mean, lower.tail = F) + pt(qt(a/2, n-2), n-2, c.ncp)*pnorm(qnorm(a/2), mean = i.mean)
-
-        }
-        return(c(n, try.power))
-      }
-
-      IU.pred <- NULL
-      for (i in 1:nrow(table)){
-        IU.pred <- rbind(IU.pred, IU.n(parameter=unlist(table[i,])))
-      }
-
-      n.final <- IU.pred[,1]
-      pred.power <- IU.pred[,2]
-    }
-  }
 
   table <- data.frame(cbind(m_bar, rho, CV, n.final, pred.power))
   names(table) <- c("m_bar", "rho", "CV", "n", "predicted power")

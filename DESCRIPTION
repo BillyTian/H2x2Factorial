@@ -1,7 +1,7 @@
 Package: H2x2Factorial
 Title: Sample Size Calculation in Hierarchical 2x2 Factorial Trials
-Version: 1.1.0
-Date: 2021-03-23
+Version: 2.0.0
+Date: 2021-07-22
 Authors@R: c(person("Zizhong","Tian", role = c("aut", "cre"),
             email = "zizhong.tian@yale.edu"),
             person("Denise", "Esserman", role = "aut",
@@ -11,13 +11,14 @@ Authors@R: c(person("Zizhong","Tian", role = c("aut", "cre"),
             person("Fan", "Li", role = "aut",
             email = "fan.f.li@yale.edu"))
 Maintainer: Zizhong Tian <zizhong.tian@yale.edu>
-Description: Implements the sample size methods for hierarchical 2x2 factorial trials under a series of hypothesis tests proposed in "Sample size calculation in hierarchical 2x2 factorial trials with unequal cluster sizes" (under review), and provides the table and plot generators for the sample size estimations.
+Description: Implements the sample size methods for hierarchical 2x2 factorial trials under two choices of effect estimands and a series of hypothesis tests proposed in "Sample size calculation in hierarchical 2x2 factorial trials with unequal cluster sizes" (under review), and provides the table and plot generators for the sample size estimations.
 Depends: R (>= 3.6.0)
 License: LGPL (>= 2.1)
 Encoding: UTF-8
-LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 Suggests: 
     knitr,
     rmarkdown
+Imports:
+    mvtnorm

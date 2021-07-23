@@ -8,7 +8,7 @@ table.H2x2Factorial(power=0.8, alpha=0.05,
                     pi_x=0.5, pi_z=0.5,
                     delta_x, delta_z, delta_xz, sigma2_y=1,
                     m_bar, CV, rho,
-                    test="cluster", correction=FALSE,
+                    estimand="controlled", test="cluster", correction=FALSE,
                     max_n=1e8, seed_mix=NULL, size_mix=1e4,
                     verbose=TRUE)
 }
@@ -34,6 +34,9 @@ table.H2x2Factorial(power=0.8, alpha=0.05,
 \item{CV}{a vector of positive numeric values for a series of coefficients of variation of the cluster sizes.}
 
 \item{rho}{a vector of numeric values between 0 and 1 for a series of intraclass correlation coefficients.}
+
+\item{estimand}{a character argument indicating the type of treatment effect estimand. Supported values include \code{"controlled"}
+(controlled or main effect estimand) and \code{"natural"} (natural or marginal effect estimand). Default is \code{"controlled"}.}
 
 \item{test}{a character argument indicating the type of hypothesis test of interest. Supported values include
 \code{"cluster"} (test for marginal cluster-level treatment effect), \code{"individual"} (test for marginal individual-level treatment effect),
@@ -61,13 +64,13 @@ based on varying design parameters including mean cluster size (m_bar), intracla
 }
 \details{
 If the user further requires a vector of \code{power} or other parameters like \code{pi_x}, which invokes the need for multiple tables,
-an external loop could be easily written using this function to produce many data frames.
+an external loop could be easily written using this function to produce multiple data frames.
 }
 \examples{
 #Make a result table by providing three mean cluster sizes, three CV, and three ICC
 table.cluster <- table.H2x2Factorial(delta_x=0.2, delta_z=0.1,
                                      m_bar=c(10,50,100), CV=c(0, 0.3, 0.5), rho=c(0.01, 0.1),
-                                     test="cluster", verbose=FALSE)
+                                     estimand="controlled", test="cluster", verbose=FALSE)
 table.cluster
 
 }

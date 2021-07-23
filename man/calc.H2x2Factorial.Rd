@@ -8,7 +8,7 @@ calc.H2x2Factorial(power=0.8, n_input=NULL, alpha=0.05,
                    pi_x=0.5, pi_z=0.5,
                    delta_x=0.25, delta_z=0.33, delta_xz=0.3, sigma2_y=1,
                    m_bar=50, CV=0, rho=0,
-                   test="cluster", correction=FALSE,
+                   estimand="controlled", test="cluster", correction=FALSE,
                    max_n=1e8, seed_mix=NULL, size_mix=1e4,
                    verbose=TRUE)
 }
@@ -37,6 +37,9 @@ calc.H2x2Factorial(power=0.8, n_input=NULL, alpha=0.05,
 
 \item{rho}{a numeric value between 0 and 1 as the intraclass correlation coefficient characterizing the between-cluster variability. Default is \code{0}.}
 
+\item{estimand}{a character argument indicating the type of treatment effect estimand. Supported values include \code{"controlled"}
+(controlled or main effect estimand) and \code{"natural"} (natural or marginal effect estimand). Default is \code{"controlled"}.}
+
 \item{test}{a character argument indicating the type of hypothesis test of interest. Supported values include
 \code{"cluster"} (test for marginal cluster-level treatment effect), \code{"individual"} (test for marginal individual-level treatment effect),
 \code{"interaction"} (interaction test for the two treatments), \code{"joint"} (joint test for the two marginal treatment effects),
@@ -58,28 +61,38 @@ sample size, with some useful and suppressible messages elaborating vital parame
 }
 \description{
 The function \code{calc.H2x2Factorial} estimates the required number of clusters or the achieved power level under different types of
-hypothesis tests in a hierarchical 2x2 factorial trial with unequal cluster sizes and a continuous outcome. Five types of hypothesis tests
-as well as their corresponding finite-sample considerations could be chosen for the predictions. Users may input an optional cluster number through the
-\code{n.input} argument. When this number is provided, the function will calculate the power under a chosen hypothesis test as well as a
-finite-sample correction if specified, and the function will ignore the potential input for the power parameter; When the number of clusters is not
-provided, the function will calculate the required number of clusters based on a given power threshold, which is set to 0.8 by default.
+hypothesis tests of either the controlled (main) effect (by default) or the natural (marginal) effect of the two treatments in a hierarchical 2x2 factorial trial
+with unequal cluster sizes and a continuous outcome. Two types of treatment effect estimands, five types of hypothesis tests as well as their corresponding
+finite-sample considerations could be chosen for the predictions. Users may input an optional cluster number through the \code{n.input} argument. When this
+number is provided, the function will calculate the power under a chosen hypothesis test as well as a finite-sample correction if specified, and the function
+will ignore the potential input for the power parameter; When the number of clusters is not provided, the function will calculate the required number of
+clusters based on a given power threshold, which is set to 0.8 by default.
 }
 \details{
 Given the input parameters, our method will firstly compute the variances of the effects of interest based on Generalized Least Square estimators and large-sample approximations.
-Then, the variances are used to build up either the classic sample size formulas (for the separate tests for marginal treatment effects and the interaction test) or the power formulas (for the simultaneous tests and the corrected tests), which help to deliver both the sample size and power calculations.
-Without finite-sample considerations, the two separate tests for marginal treatment effects as well as the interaction test use the two-sided Wald z-test, the joint test use the Chi-square test, and the intersection-union (I-U) test use also a two-sided z-based test.
-With \code{correction=T}, finite-sample corrections are customized for the three types of tests involving the marginal cluster-level treatment effect: For the test for marginal cluster-level treatment effect, a two-sided t-test is used;
-For the joint test, a simulation-based mixed F-chi-square test is used; For the I-U test, a two-sided mixed t- and z-based test is used.
-For the finite-sample corrected joint test, since there does not exist the required parametric distribution, we offer a simulation-based method to generate the null and alternative distributions, and we use the simulated distributions to compute the power and required sample size.
-A seed should be set via \code{seed_mix} for this random process to promote reproducibility, and this is only needed under the joint test with finite-sample correction.
-The five types of \code{test} and \code{correction} are defined in Tian (under review).
+Then, the variances are used to build up either the classic sample size formulas (for the separate tests for controlled or natural treatment effects and the interaction test) or
+the power formulas (for the simultaneous tests and the corrected tests), which help to deliver both the sample size and power calculations.
+Without finite-sample considerations, the separate tests of the two controlled effects and the two natural effects as well as the interaction test use the two-sided Wald z-test,
+the joint test use the Chi-square test, and the intersection-union (I-U) test use also a two-sided z-based test.
+With \code{correction=T}, finite-sample corrections are customized for the three types of tests involving either the controlled effect or the natural effect of the cluster-level
+treatment: For the tests for the controlled effect and the natural effect of the cluster-level treatment, a two-sided t-test is used;
+For the joint test of the two controlled effects, a F-test is used as a naive correction, which might lead to slight overpower;
+For the joint test of the two natural effects, a simulation-based mixed F-chi-square test is used;
+For the I-U test of the two controlled effects, a two-sided t-based test is used as a naive correction, which might lead to slight overpower.
+For the I-U test of the two natural effects, a two-sided mixed t- and z-based test is used.
+For the finite-sample corrected joint test of the two natural effects, since there does not exist the required parametric distribution, we offer a simulation-based method to
+generate the null and alternative distributions, and we use the simulated distributions to compute the power and required sample size.
+A seed should be set via \code{seed_mix} for this random process to promote reproducibility, and this is only needed under the natural effect joint test with finite-sample correction.
+The two types of \code{estimand}, the five types of \code{test}, and the developments of \code{correction} are defined in Tian et al. (under review).
 }
 \examples{
-#Predict the actual power of a joint test when the number of clusters is 10
+#Predict the actual power of a natural effect joint test when the number of clusters is 10
 joint.power <- calc.H2x2Factorial(n_input=10,
                                   delta_x=0.2, delta_z=0.1,
                                   rho=0.1, CV=0.38,
-                                  test="joint", correction=TRUE, seed_mix=123456, verbose=FALSE)
+                                  estimand="natural",
+                                  test="joint",
+                                  correction=TRUE, seed_mix=123456, verbose=FALSE)
 print(joint.power)
 
 }

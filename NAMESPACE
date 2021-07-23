@@ -3,6 +3,7 @@
 export(calc.H2x2Factorial)
 export(graph.H2x2Factorial)
 export(table.H2x2Factorial)
+import(mvtnorm)
 importFrom(graphics,legend)
 importFrom(graphics,lines)
 importFrom(graphics,mtext)

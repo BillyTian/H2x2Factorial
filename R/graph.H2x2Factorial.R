@@ -13,7 +13,7 @@
 #'                     power=0.8, alpha=0.05,
 #'                     pi_x=0.5, pi_z=0.5,
 #'                     delta_x=0.25, delta_z=0.33, delta_xz=0.3, sigma2_y=1, rho=0,
-#'                     test="cluster", correction=FALSE,
+#'                     estimand="controlled", test="cluster", correction=FALSE,
 #'                     max_n=1e8, seed_mix=NULL, size_mix=1e4,
 #'                     verbose=TRUE)
 #'
@@ -37,6 +37,8 @@
 #' @param delta_xz a nonzero numeric value for the (unstandardized) effect size of the interaction effect of the two treatments. Default is \code{0.3}, which is the hypothetical value for the example in the referenced paper.
 #' @param sigma2_y a positive numeric value for the total variance of the continuous outcome. Default is \code{1}.
 #' @param rho a numeric value between 0 and 1 as the intraclass correlation coefficient characterizing the between-cluster variability. Default is \code{0}.
+#' @param estimand a character argument indicating the type of treatment effect estimand. Supported values include \code{"controlled"}
+#' (controlled or main effect estimand) and \code{"natural"} (natural or marginal effect estimand). Default is \code{"controlled"}.
 #' @param test a character argument indicating the type of hypothesis test of interest. Supported values include
 #' \code{"cluster"} (test for marginal cluster-level treatment effect), \code{"individual"} (test for marginal individual-level treatment effect),
 #' \code{"interaction"} (interaction test for the two treatments), \code{"joint"} (joint test for the two marginal treatment effects),
@@ -53,8 +55,9 @@
 #'
 #' @examples
 #' #Make a plot under the test for marginal cluster-level treatment effect
-#' graph.H2x2Factorial(power=0.9, test="cluster", rho=0.1, verbose=FALSE)
+#' graph.H2x2Factorial(power=0.9, estimand="controlled", test="cluster", rho=0.1, verbose=FALSE)
 #'
+#' @import mvtnorm
 #' @importFrom stats qnorm pnorm qt pt qchisq pchisq rchisq qf pf rf quantile
 #' @importFrom graphics plot lines mtext legend
 #'
@@ -71,6 +74,7 @@ graph.H2x2Factorial <- function(m_lower=10,
                                 delta_x=0.25, delta_z=0.33, delta_xz=0.3,
                                 sigma2_y=1,
                                 rho=0,
+                                estimand="controlled",
                                 test="cluster",
                                 correction=FALSE,
                                 max_n=1e8,
@@ -150,6 +154,8 @@ graph.H2x2Factorial <- function(m_lower=10,
   if (!is.numeric(rho) || rho < 0 || rho >= 1 || length(rho)!=1)
     stop('Intraclass correlation coefficient must be a single number in [0,1)')
 
+  if ( !(estimand %in% c("controlled", "natural")) || length(estimand)!=1)
+    stop('Type of treatment effect estimand should be a single choice from "controlled" and "natural"')
 
   if ( !(test %in% c("cluster", "individual", "interaction", "joint", "I-U")) || length(test)!=1)
     stop('Type of hypothesis tests should be a single choice from "cluster", "individual", "interaction", "joint", and "I-U"')
@@ -228,17 +234,32 @@ graph.H2x2Factorial <- function(m_lower=10,
   z_a <- qnorm(1-a/2)
   z_b <- qnorm(1-b)
 
-  if (test=="cluster") {
-    v <- Vectorize(marginal.cluster, c("m_bar"))
-  } else if (test=="individual") {
-    v <- Vectorize(marginal.ind, c("m_bar"))
-  } else if (test=="interaction") {
-    v <- Vectorize(interaction, c("m_bar"))
-  } else if (test=="joint") {
-    v <- Vectorize(joint, c("m_bar"))
-  } else if (test=="I-U") {
-    v <- Vectorize(IU, c("m_bar"))
+  if (estimand=="controlled"){
+    if (test=="cluster") {
+      v <- Vectorize(main.cluster, c("m_bar"))
+    } else if (test=="individual") {
+      v <- Vectorize(main.ind, c("m_bar"))
+    } else if (test=="interaction") {
+      v <- Vectorize(interaction, c("m_bar"))
+    } else if (test=="joint") {
+      v <- Vectorize(main.joint, c("m_bar"))
+    } else if (test=="I-U") {
+      v <- Vectorize(main.IU, c("m_bar"))
+    }
+  } else if (estimand=="natural"){
+    if (test=="cluster") {
+      v <- Vectorize(marginal.cluster, c("m_bar"))
+    } else if (test=="individual") {
+      v <- Vectorize(marginal.ind, c("m_bar"))
+    } else if (test=="interaction") {
+      v <- Vectorize(interaction, c("m_bar"))
+    } else if (test=="joint") {
+      v <- Vectorize(marginal.joint, c("m_bar"))
+    } else if (test=="I-U") {
+      v <- Vectorize(marginal.IU, c("m_bar"))
+    }
   }
+
 
   Mset <- seq(m_lower, m_upper, by=m_step)
 
@@ -246,17 +267,37 @@ graph.H2x2Factorial <- function(m_lower=10,
 
   for (i in 1:length(CV)){
     if (test=="cluster"){
-      line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power, correction=correction,
-                        delta_x=delta_x, rho=rho, sigma2_y=sigma2_y, pi_x=pi_x, max_n=max_n, z_a=z_a, z_b=z_b, a=a)
+
+      if (estimand=="controlled"){
+        line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power, correction=correction,
+                        delta_x=delta_x, rho=rho, sigma2_y=sigma2_y, pi_x=pi_x, pi_z=pi_z, max_n=max_n, z_a=z_a, z_b=z_b, a=a)
+      }else if (estimand=="natural"){
+        line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power, correction=correction,
+                          delta_x=delta_x, rho=rho, sigma2_y=sigma2_y, pi_x=pi_x, max_n=max_n, z_a=z_a, z_b=z_b, a=a)
+      }
+
     } else if (test=="individual"){
-      line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power,
-                        delta_z=delta_z, rho=rho, sigma2_y=sigma2_y, pi_z=pi_z, z_a=z_a, z_b=z_b)
+      if (estimand=="controlled"){
+        line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power,
+                          delta_z=delta_z, rho=rho, sigma2_y=sigma2_y, pi_x=pi_x, pi_z=pi_z, z_a=z_a, z_b=z_b)
+      }else if (estimand=="natural"){
+        line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power,
+                          delta_z=delta_z, rho=rho, sigma2_y=sigma2_y, pi_z=pi_z, z_a=z_a, z_b=z_b)
+      }
+
     } else if (test=="interaction"){
       line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power,
                         delta_xz=delta_xz, rho=rho, sigma2_y=sigma2_y, pi_x=pi_x, pi_z=pi_z, z_a=z_a, z_b=z_b)
     } else if (test=="joint"){
-      line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power, correction=correction,
-                        delta_x=delta_x, delta_z=delta_z, rho=rho, sigma2_y=sigma2_y, pi_x=pi_x, pi_z=pi_z, max_n=max_n, a=a, seed_mix=seed_mix, size_mix=size_mix)
+
+      if (estimand=="controlled"){
+        line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power, correction=correction,
+                          delta_x=delta_x, delta_z=delta_z, rho=rho, sigma2_y=sigma2_y, pi_x=pi_x, pi_z=pi_z, max_n=max_n, a=a)
+      } else if (estimand=="natural"){
+        line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power, correction=correction,
+                          delta_x=delta_x, delta_z=delta_z, rho=rho, sigma2_y=sigma2_y, pi_x=pi_x, pi_z=pi_z, max_n=max_n, a=a, seed_mix=seed_mix, size_mix=size_mix)
+      }
+
     } else if (test=="I-U"){
       line.CV[[i]] <- v(m_bar=Mset, CV=CV[i], power=power, correction=correction,
                         delta_x=delta_x, delta_z=delta_z, rho=rho, sigma2_y=sigma2_y, pi_x=pi_x, pi_z=pi_z, max_n=max_n, a=a)
@@ -273,72 +314,143 @@ graph.H2x2Factorial <- function(m_lower=10,
 
 
   #Re-iterate the given effect sizes, the chosen test, and the theoretical test name
+
+
+  #Re-iterate the given effect sizes and the chosen test
   if (verbose==TRUE){
-    if (test=="cluster"){
+    if (estimand=="controlled"){
+      cat('Type of treatment effect estimand:\nContolled (main) effect')
 
-      cat('Type of hypothesis test:\nTest for marginal cluster-level treatment effect')
-      cat(paste0('\nEffect size:\n', delta_x, " for the marginal cluster-level treatment effect"))
-      if (correction==FALSE){
-        cat("\nA Wald z-test is used without finite-sample correction\n")
-      } else if (correction==TRUE){
-        cat("\nA t-test is used for finite-sample correction\n")
+      if (test=="cluster"){
+        cat('\nType of hypothesis test:\nSeparate test for the cluster-level treatment effect')
+        cat(paste0('\nEffect size:\n', delta_x, " for the controlled effect of the cluster-level treatment"))
+        if (correction==FALSE){
+          cat("\nA Wald z-test is used without finite-sample correction\n")
+        } else if (correction==TRUE){
+          cat("\nA t-test is used for finite-sample correction\n")
+        }
+
+      } else if (test=="individual"){
+        cat('\nType of hypothesis test:\nSeparate test for the individual-level treatment effect')
+        cat(paste0('\nEffect size:\n', delta_z, " for the controlled effect of the individual-level treatment"))
+
+      } else if (test=="interaction"){
+        cat('\nType of hypothesis test:\nInteraction test')
+        cat(paste0('\nEffect size:\n', delta_xz, " for the interaction effect"))
+
+      } else if (test=="joint"){
+        cat('\nType of hypothesis test:\nJoint test')
+        cat(paste0('\nEffect sizes:\n', delta_x, " for the controlled effect of the cluster-level treatmen\n", delta_z, " for the controlled effect of the individual-level treatment"))
+        if (correction==FALSE){
+          cat("\nA Chi-square test is used without finite-sample correction\n")
+        } else if (correction==TRUE){
+          cat("\nA F-test is used for finite-sample correction\n")
+        }
+
+      } else if (test=="I-U"){
+        cat('\nType of hypothesis test:\nIntersection-union test')
+        cat(paste0('\nEffect sizes:\n', delta_x, " for the controlled effect of the cluster-level treatment\n", delta_z, " for the controlled effect of the individual-level treatment"))
+        if (correction==FALSE){
+          cat("\nA z-based intersection-union test is used without finite-sample correction\n")
+        } else if (correction==TRUE){
+          cat("\nA t-based intersection-union test is used for finite-sample correction\n")
+        }
       }
 
-    } else if (test=="individual"){
+    } else if (estimand=="natural"){
+      cat('Type of treatment effect estimand:\nNatural (marginal) effect')
 
-      cat('Type of hypothesis test:\nTest for marginal individual-level treatment effect')
-      cat(paste0('\nEffect size:\n', delta_z, " for the marginal individual-level treatment effect"))
+      if (test=="cluster"){
+        cat('\nType of hypothesis test:\nSeparate test for the cluster-level treatment effect')
+        cat(paste0('\nEffect size:\n', delta_x, " for the natural effect of the cluster-level treatment"))
+        if (correction==FALSE){
+          cat("\nA Wald z-test is used without finite-sample correction\n")
+        } else if (correction==TRUE){
+          cat("\nA t-test is used for finite-sample correction\n")
+        }
 
-    } else if (test=="interaction"){
+      } else if (test=="individual"){
+        cat('\nType of hypothesis test:\nSeparate test for the individual-level treatment effect')
+        cat(paste0('\nEffect size:\n', delta_z, " for the natural effect of the individual-level treatment"))
 
-      cat('Type of hypothesis test:\nInteraction test')
-      cat(paste0('\nEffect size:\n', delta_xz, " for the interaction effect"))
+      } else if (test=="interaction"){
+        cat('\nType of hypothesis test:\nInteraction test')
+        cat(paste0('\nEffect size:\n', delta_xz, " for the interaction effect"))
 
-    } else if (test=="joint"){
+      } else if (test=="joint"){
+        cat('\nType of hypothesis test:\nJoint test')
+        cat(paste0('\nEffect sizes:\n', delta_x, " for the natural effect of the cluster-level treatmen\n", delta_z, " for the natural effect of the individual-level treatment"))
+        if (correction==FALSE){
+          cat("\nA Chi-square test is used without finite-sample correction\n")
+        } else if (correction==TRUE){
+          cat("\nA simulation-based mixed F-Chi-square test is used for finite-sample correction\n")
+        }
 
-      cat('Type of hypothesis test:\nJoint test')
-      cat(paste0('\nEffect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
-      if (correction==FALSE){
-        cat("\nA Chi-square test is used without finite-sample correction\n")
-      } else if (correction==TRUE){
-        cat("\nA simulation-based mixed F-Chi-square test is used for finite-sample correction\n")
+      } else if (test=="I-U"){
+        cat('\nType of hypothesis test:\nIntersection-union test')
+        cat(paste0('\nEffect sizes:\n', delta_x, " for the natural effect of the cluster-level treatment\n", delta_z, " for the natural effect of the individual-level treatment"))
+        if (correction==FALSE){
+          cat("\nA z-based intersection-union test is used without finite-sample correction\n")
+        } else if (correction==TRUE){
+          cat("\nA mixed t- and z-based intersection-union test is used for finite-sample correction\n")
+        }
       }
-
-    } else if (test=="I-U"){
-
-      cat('Type of hypothesis test:\nIntersection-union test')
-      cat(paste0('\nEffect sizes:\n', delta_x, " for the marginal cluster-level treatment effect\n", delta_z, " for the marginal individual-level treatment effect"))
-      if (correction==FALSE){
-        cat("\nA z-based intersection-union test is used without finite-sample correction\n")
-      } else if (correction==TRUE){
-        cat("\nA mixed t- and z-based intersection-union test is used for finite-sample correction\n")
-      }
-
     }
+
   }
 
 
   if (is.null(title)){
-    if (test=="cluster"){
-      if (correction==TRUE){title <- "Test for marginal cluster-level treatment effect \n with finite-sample correction"}
-      else if (correction==FALSE){title <- "Test for marginal cluster-level treatment effect \n without finite-sample correction"}
 
-    } else if (test=="individual"){
-      title <- "Test for marginal individual-level treatment effect"
+    if (estimand=="controlled"){
 
-    } else if (test=="interaction"){
-      title <- "Interaction test"
+      if (test=="cluster"){
+        if (correction==TRUE){title <- "Test for the cluster-level controlled effect \n with finite-sample correction"}
+        else if (correction==FALSE){title <- "Test for the cluster-level controlled effect \n without finite-sample correction"}
 
-    } else if (test=="joint"){
-      if (correction==TRUE){title <- "Joint test with finite-sample correction"}
-      else if (correction==FALSE){title <- "Joint test without finite-sample correction"}
+      } else if (test=="individual"){
+        title <- "Test for the individual-level controlled effect"
 
-    } else if (test=="I-U"){
-      if (correction==TRUE){title <- "Intersection-union test \n with finite-sample correction"}
-      else if (correction==FALSE){title <- "Intersection-union test \n without finite-sample correction"}
+      } else if (test=="interaction"){
+        title <- "Interaction test"
+
+      } else if (test=="joint"){
+        if (correction==TRUE){title <- "Joint test of the two controlled effects \n with finite-sample correction"}
+        else if (correction==FALSE){title <- "Joint test of the two controlled effects \n without finite-sample correction"}
+
+      } else if (test=="I-U"){
+        if (correction==TRUE){title <- "Intersection-union test of the two controlled effects \n with finite-sample correction"}
+        else if (correction==FALSE){title <- "Intersection-union test of the two controlled effects \n without finite-sample correction"}
+
+      }
+
+    } else if (estimand=="natural"){
+
+      if (test=="cluster"){
+        if (correction==TRUE){title <- "Test for the cluster-level natural effect \n with finite-sample correction"}
+        else if (correction==FALSE){title <- "Test for the cluster-level natural effect \n without finite-sample correction"}
+
+      } else if (test=="individual"){
+        title <- "Test for the individual-level natural effect"
+
+      } else if (test=="interaction"){
+        title <- "Interaction test"
+
+      } else if (test=="joint"){
+        if (correction==TRUE){title <- "Joint test of the two natural effects \n with finite-sample correction"}
+        else if (correction==FALSE){title <- "Joint test of the two natural effects \n without finite-sample correction"}
+
+      } else if (test=="I-U"){
+        if (correction==TRUE){title <- "Intersection-union test of the two natural effects \n with finite-sample correction"}
+        else if (correction==FALSE){title <- "Intersection-union test of the two natural effects \n without finite-sample correction"}
+
+      }
 
     }
+
   }
+
+
 
   plot(Mset, line.CV[[1]], ylim=c(y_lower, y_upper), las=1,
        xlab=expression(bar(m)),

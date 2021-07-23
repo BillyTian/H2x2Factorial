@@ -11,7 +11,7 @@ graph.H2x2Factorial(m_lower=10, m_upper=100, m_step=2,
                     power=0.8, alpha=0.05,
                     pi_x=0.5, pi_z=0.5,
                     delta_x=0.25, delta_z=0.33, delta_xz=0.3, sigma2_y=1, rho=0,
-                    test="cluster", correction=FALSE,
+                    estimand="controlled", test="cluster", correction=FALSE,
                     max_n=1e8, seed_mix=NULL, size_mix=1e4,
                     verbose=TRUE)
 }
@@ -53,6 +53,9 @@ Default is \code{c("#0F2080", "#85C0F9", "#DDCC77", "#F5793A", "#A95AA1")}. The 
 
 \item{rho}{a numeric value between 0 and 1 as the intraclass correlation coefficient characterizing the between-cluster variability. Default is \code{0}.}
 
+\item{estimand}{a character argument indicating the type of treatment effect estimand. Supported values include \code{"controlled"}
+(controlled or main effect estimand) and \code{"natural"} (natural or marginal effect estimand). Default is \code{"controlled"}.}
+
 \item{test}{a character argument indicating the type of hypothesis test of interest. Supported values include
 \code{"cluster"} (test for marginal cluster-level treatment effect), \code{"individual"} (test for marginal individual-level treatment effect),
 \code{"interaction"} (interaction test for the two treatments), \code{"joint"} (joint test for the two marginal treatment effects),
@@ -79,6 +82,6 @@ will be automatically adjusted based on the extreme values calculated. A color-b
 }
 \examples{
 #Make a plot under the test for marginal cluster-level treatment effect
-graph.H2x2Factorial(power=0.9, test="cluster", rho=0.1, verbose=FALSE)
+graph.H2x2Factorial(power=0.9, estimand="controlled", test="cluster", rho=0.1, verbose=FALSE)
 
 }
