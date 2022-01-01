@@ -11,7 +11,7 @@ hierarchical 2x2 factorial trials with unequal cluster sizes. The sample
 size calculations support two types of treatment effect estimands and
 five types of hypothesis tests based on the two measures. The two
 estimands are named as the controlled effect and the natural effect, as
-formally defined in Tian et al. (under review); The hypotheses include
+formally defined in Tian et al. (Stat Med accepted); The hypotheses include
 (A1) test for the cluster-level controlled effect, (A2) test for the
 individual-level controlled effect, (B1) test for the cluster-level
 natural effect, (B2) test for the individual-level natural effect, (C)
